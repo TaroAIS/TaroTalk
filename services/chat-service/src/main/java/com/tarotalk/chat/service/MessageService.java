@@ -21,17 +21,20 @@ import java.util.UUID;
 public class MessageService {
     private final ChatMessageRepository chatMessageRepository;
     private final ConversationRepository conversationRepository;
+    private final ConversationParticipantRepository participantRepository;
     private final AiClient aiClient;
     private final OrchestratorClient orchestratorClient;
     private final WebSocketPublisher webSocketPublisher;
 
     public MessageService(ChatMessageRepository chatMessageRepository,
                           ConversationRepository conversationRepository,
+                          ConversationParticipantRepository participantRepository,
                           AiClient aiClient,
                           OrchestratorClient orchestratorClient,
                           WebSocketPublisher webSocketPublisher) {
         this.chatMessageRepository = chatMessageRepository;
         this.conversationRepository = conversationRepository;
+        this.participantRepository = participantRepository;
         this.aiClient = aiClient;
         this.orchestratorClient = orchestratorClient;
         this.webSocketPublisher = webSocketPublisher;
@@ -54,7 +57,11 @@ public class MessageService {
         webSocketPublisher.publish(conversationId.toString(), saved);
 
         if (request.isGenerateAiReply()) {
-            String replyText = orchestratorClient.generateReply(conversationId.toString(), request.getPersonaSummary(), safeContext(request.getContext()));
+            java.util.List<java.util.UUID> participants = participantRepository.findByConversationId(conversationId)
+                    .stream()
+                    .map(com.tarotalk.chat.domain.ConversationParticipant::getUserId)
+                    .collect(java.util.stream.Collectors.toList());
+            String replyText = orchestratorClient.generateReply(conversationId.toString(), request.getPersonaSummary(), safeContext(request.getContext()), participants);
             if (replyText == null || replyText.isEmpty()) {
                 replyText = aiClient.generateReply(request.getPersonaSummary(), conversationId.toString(), safeContext(request.getContext()));
             }

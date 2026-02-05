@@ -23,3 +23,14 @@ services:
     ports:
       - "7687:7687"
       - "7474:7474"
+  orchestrator:
+    build: ../orchestrator
+    environment:
+      ORCH_PORT: 8077
+      USER_SERVICE_URL: http://user-service:8082
+      CONTACT_SERVICE_URL: http://user-service:8082
+      RELATIONSHIP_SERVICE_URL: http://relationship-service:8088
+      CHAT_SERVICE_URL: http://chat-service:8084
+      FEED_SERVICE_URL: http://feed-service:8085
+    ports:
+      - "8077:8077"

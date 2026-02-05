@@ -1,0 +1,9 @@
+你是一个专业的软件工程师，请根据提供的项目文档，实现一个完整的 AI 代理聊天软件。项目采用前后端分离和微服务架构，后端使用 Java 8 和 Spring Boot/Spring Cloud，前端使用 React + TypeScript + Next.js。请遵循以下要求：
+1. 阅读所有文档文件（项目概述、需求规格、架构设计、API 文档、数据库设计、UI/UX 设计、系统交互、测试计划、部署与运维），理解产品的目标和功能。
+2. 在后端实现以下微服务：Auth、User、Persona、Chat、Feed、Presence、Notification、Relationship、Scheduler、AI Service 等，使用 Spring Boot 构建 RESTful 和 WebSocket 接口，满足 API 文档中的路径和参数要求，并调用外部 LLM API 生成 persona 和消息。
+3. 设计和实现数据库模型，使用 JPA/Hibernate 与关系数据库交互；利用 Cassandra/MongoDB 存储消息；使用 Redis 缓存；使用 Neo4j 处理关系图；调用 Weaviate/Milvus SDK 进行向量存储。
+4. 实现前端应用，包含用户注册与登录、persona 创建、通讯录、聊天、朋友圈、个人中心等界面，按 UI/UX 文档的布局和风格渲染，使用 WebSocket 保持实时聊天。
+5. 集成测试和单元测试，按照测试计划编写测试；并编写 Dockerfile 和 Kubernetes 配置，实现自动部署。
+6. 你的输出应包含所有必要的源代码、配置文件和文档。
+
+请在实现过程中遵循最佳实践，代码需结构清晰、可扩展、可维护，并符合安全和性能要求。

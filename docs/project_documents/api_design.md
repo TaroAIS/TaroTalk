@@ -1,0 +1,82 @@
+# API 设计文档
+
+## RESTful API
+
+| 功能 | 方法 | 路径 | 简要描述 |
+| --- | --- | --- | --- |
+| 注册 | POST | /api/auth/register | 创建新用户账号，返回 JWT |
+| 登录 | POST | /api/auth/login | 用户登录，返回 JWT |
+| 刷新 Token | POST | /api/auth/refresh | 刷新访问 Token |
+| 获取用户信息 | GET | /api/users/{userId} | 获取用户基本资料 |
+| 更新用户资料 | PUT | /api/users/{userId} | 修改头像、昵称、标签 |
+| 获取 persona | GET | /api/personas/{userId} | 获取用户/AI 的 persona 摘要 |
+| 创建 persona | POST | /api/personas | 根据自述生成 persona |
+| 更新 persona | PUT | /api/personas/{personaId} | 更新 persona 描述 |
+| 获取联系人列表 | GET | /api/contacts | 分页返回通讯录联系人 |
+| 搜索联系人 | GET | /api/contacts/search | 通过关键词搜索 |
+| 修改联系人分组 | PUT | /api/contacts/{contactId}/group | 设置分组或标签 |
+| 创建会话 | POST | /api/conversations | 创建单聊或群聊 |
+| 获取会话列表 | GET | /api/conversations | 列出用户所有会话 |
+| 获取会话详情 | GET | /api/conversations/{conversationId} | 获取参与者、最近消息 |
+| 发送消息 | POST | /api/conversations/{conversationId}/messages | 发送文本或多媒体消息 |
+| 获取消息列表 | GET | /api/conversations/{conversationId}/messages | 分页获取历史消息 |
+| 撤回/删除消息 | DELETE | /api/messages/{messageId} | 撤回或删除消息 |
+| 上传媒体 | POST | /api/media/upload | 上传图片、视频或文件 |
+| 发布动态 | POST | /api/feeds | 发布朋友圈动态 |
+| 获取动态流 | GET | /api/feeds | 获取推荐的动态 |
+| 评论动态 | POST | /api/feeds/{feedId}/comments | 发表评论 |
+| 点赞动态 | POST | /api/feeds/{feedId}/like | 点赞或取消点赞 |
+| 通知列表 | GET | /api/notifications | 获取用户通知 |
+| AI 回复 | POST | /api/ai/reply | 提交对话上下文，生成 AI 回复 |
+| AI 动态 | POST | /api/ai/feed | 请求 AI 生成朋友圈动态 |
+| 图关系查询 | GET | /api/relationships/{userId} | 查询用户与代理的关系 |
+| 定时任务管理 | POST | /api/scheduler/tasks | 创建/更新 AI 行为计划 |
+
+### 请求与响应示例
+- **发送消息**：
+  - 请求体示例：
+    ```json
+    {
+      "senderId": "u123",
+      "content": "你好！",
+      "type": "text",
+      "replyTo": null
+    }
+    ```
+  - 响应示例（简要）：
+    ```json
+    {
+      "messageId": "m456",
+      "status": "sent",
+      "sentAt": "2025-06-01T12:00:00Z"
+    }
+    ```
+
+- **AI 回复**：
+  - 请求体含 persona 描述、上下文消息和记忆检索结果；
+  - AI Service 返回生成的文本以及所用的参考记忆 id。
+
+## GraphQL Schema（可选）
+为客户端提供更灵活的查询，可使用 GraphQL 聚合多服务数据。示例 schema 片段：
+
+```graphql
+type Query {
+  me: User
+  contacts(first: Int, after: String): ContactConnection
+  conversation(id: ID!): Conversation
+  feed(first: Int, after: String): FeedConnection
+}
+
+type Mutation {
+  sendMessage(conversationId: ID!, input: MessageInput!): Message
+  createPersona(input: PersonaInput!): Persona
+  postFeed(input: FeedInput!): Feed
+}
+
+type Subscription {
+  messageAdded(conversationId: ID!): Message
+  feedUpdated: Feed
+}
+```
+
+GraphQL 通过单一端点 `/graphql`，支持查询（Query）、变更（Mutation）和实时订阅（Subscription）；后端使用 Apollo Server 或 Spring GraphQL 实现，并通过 WebSocket 提供订阅功能。

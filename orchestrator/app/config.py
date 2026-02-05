@@ -9,6 +9,8 @@ class Settings(BaseModel):
     relationship_service_url: str = os.getenv("RELATIONSHIP_SERVICE_URL", "http://localhost:8088")
     chat_service_url: str = os.getenv("CHAT_SERVICE_URL", "http://localhost:8084")
     feed_service_url: str = os.getenv("FEED_SERVICE_URL", "http://localhost:8085")
+    persona_service_url: str = os.getenv("PERSONA_SERVICE_URL", "http://localhost:8083")
+    notification_service_url: str = os.getenv("NOTIFICATION_SERVICE_URL", "http://localhost:8087")
     llm_provider: str = os.getenv("LLM_PROVIDER", "openai")
     llm_model: str = os.getenv("LLM_MODEL", "gpt-4o-mini")
     llm_api_base: str | None = os.getenv("LLM_API_BASE")

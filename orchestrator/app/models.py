@@ -22,6 +22,7 @@ class ToolCall(BaseModel):
 class A2AChatResponse(BaseModel):
     reply: str
     tool_calls: List[ToolCall] = Field(default_factory=list)
+    trace_id: str | None = None
 
 
 class BootstrapRequest(BaseModel):

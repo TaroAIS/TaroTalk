@@ -1,7 +1,7 @@
 from fastapi import FastAPI, APIRouter
 from fastapi.responses import JSONResponse
 import httpx
-import random
+import uuid
 from .config import settings
 from .models import (
     A2AChatRequest,
@@ -13,9 +13,11 @@ from .models import (
     SimulateResponse,
 )
 from .tools import tool_registry
+from .orchestrator import OrchestratorEngine
 
 app = FastAPI(title="Tarotalk Orchestrator")
 router = APIRouter(prefix="/a2a")
+engine = OrchestratorEngine()
 
 
 async def create_user(client: httpx.AsyncClient, nickname: str, user_type: str, owner_user_id: str | None):
@@ -57,6 +59,7 @@ async def update_relationship(client: httpx.AsyncClient, user_id: str, target_id
 async def tools():
     return JSONResponse(tool_registry())
 
+
 @router.post("/bootstrap", response_model=BootstrapResponse)
 async def bootstrap(request: BootstrapRequest):
     roles = ["friend", "mentor", "rival", "advertiser"]
@@ -94,16 +97,17 @@ async def bootstrap(request: BootstrapRequest):
 
 @router.post("/chat", response_model=A2AChatResponse)
 async def chat(request: A2AChatRequest):
-    if not request.messages:
-        return A2AChatResponse(reply="Hello, I'm here.")
-    last = request.messages[-1].content
-    reply = f"I hear you. {last[:120]}"
-    return A2AChatResponse(reply=reply)
+    messages = [msg.model_dump() for msg in request.messages]
+    result = await engine.run_chat(messages, request.persona_summary, request.participants)
+    trace_id = str(uuid.uuid4())
+    return A2AChatResponse(reply=result["reply"], tool_calls=result["tool_calls"], trace_id=trace_id)
 
 
 @router.post("/simulate", response_model=SimulateResponse)
 async def simulate(request: SimulateRequest):
-    return SimulateResponse(status="ok")
+    prompt = f"Generate a short action for user {request.user_id}. Objective: {request.objective or 'daily update'}"
+    result = await engine.run_chat([{"role": "user", "content": prompt}], None)
+    return SimulateResponse(status=result["reply"] or "ok")
 
 
 app.include_router(router)

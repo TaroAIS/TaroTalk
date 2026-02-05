@@ -17,15 +17,18 @@ public class PersonaService {
     private final AiClient aiClient;
     private final EmbeddingService embeddingService;
     private final VectorStoreClient vectorStoreClient;
+    private final OrchestratorClient orchestratorClient;
 
     public PersonaService(PersonaRepository personaRepository,
                           AiClient aiClient,
                           EmbeddingService embeddingService,
-                          VectorStoreClient vectorStoreClient) {
+                          VectorStoreClient vectorStoreClient,
+                          OrchestratorClient orchestratorClient) {
         this.personaRepository = personaRepository;
         this.aiClient = aiClient;
         this.embeddingService = embeddingService;
         this.vectorStoreClient = vectorStoreClient;
+        this.orchestratorClient = orchestratorClient;
     }
 
     public Persona createPersona(CreatePersonaRequest request) {
@@ -40,6 +43,7 @@ public class PersonaService {
         persona.setUpdatedAt(Instant.now());
         Persona saved = personaRepository.save(persona);
         vectorStoreClient.upsert(saved.getPersonaId().toString(), embedding, saved.getDescription());
+        orchestratorClient.bootstrapAgents(request.getUserId().toString(), saved.getDescription(), saved.getTraitsJson());
         return saved;
     }
 

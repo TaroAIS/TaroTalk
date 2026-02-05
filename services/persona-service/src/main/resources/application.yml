@@ -20,6 +20,8 @@ spring:
 integrations:
   ai-service:
     base-url: http://localhost:8090
+  orchestrator:
+    base-url: http://localhost:8077
 
 vector-store:
   base-url: ${VECTOR_STORE_URL:}

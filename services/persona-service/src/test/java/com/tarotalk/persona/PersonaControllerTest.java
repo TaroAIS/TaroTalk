@@ -1,6 +1,7 @@
 package com.tarotalk.persona;
 
 import com.tarotalk.persona.service.AiClient;
+import com.tarotalk.persona.service.OrchestratorClient;
 import com.tarotalk.persona.service.VectorStoreClient;
 import com.tarotalk.persona.service.dto.PersonaGenerationResult;
 import org.junit.jupiter.api.Test;
@@ -28,6 +29,9 @@ public class PersonaControllerTest {
 
     @MockBean
     private VectorStoreClient vectorStoreClient;
+
+    @MockBean
+    private OrchestratorClient orchestratorClient;
 
     @Test
     void createPersona() throws Exception {

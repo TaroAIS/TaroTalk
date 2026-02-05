@@ -18,6 +18,10 @@
    - 使用 Helm 或 Kustomize 管理 Kubernetes 清单文件，配置 Deployment、Service、Ingress、ConfigMap、Secret 等。
    - 在测试环境先行部署，运行回归测试。
    - 使用灰度发布或蓝绿部署策略逐步将新版本发布到生产环境；监控关键指标，如请求延迟、错误率、CPU 内存使用率。
+   - Orchestrator 作为独立服务部署（Python/FastAPI），需要配置 LLM 与下游服务地址：
+     - `LLM_API_KEY` / `LLM_API_BASE` / `LLM_MODEL`
+     - `USER_SERVICE_URL` / `CONTACT_SERVICE_URL` / `PERSONA_SERVICE_URL`
+     - `RELATIONSHIP_SERVICE_URL` / `CHAT_SERVICE_URL` / `FEED_SERVICE_URL` / `NOTIFICATION_SERVICE_URL`
 
 5. **数据库迁移**
    - 发布新版本前执行数据库迁移脚本（Liquibase/Flyway），保证表结构一致。

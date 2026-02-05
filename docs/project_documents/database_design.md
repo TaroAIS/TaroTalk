@@ -11,6 +11,8 @@
 - `avatar_url` (VARCHAR)：头像 URL
 - `phone` (VARCHAR)：手机号（可选）
 - `email` (VARCHAR)：邮箱（可选）
+- `user_type` (ENUM: human, ai, brand)：用户类型
+- `owner_user_id` (UUID)：当 user_type=ai/brand 时关联的真实用户
 - `status` (INT)：账号状态（正常/禁用）
 - `created_at` (TIMESTAMP)
 - `updated_at` (TIMESTAMP)
@@ -30,6 +32,7 @@
 - `group_name` (VARCHAR)：分组名
 - `blocked` (BOOLEAN)
 - `created_at` (TIMESTAMP)
+> 约束：通讯录仅存 AI/Brand 用户（contact_user_id 对应 user_type != human）
 
 ### Conversation
 - `conversation_id` (PK, UUID)

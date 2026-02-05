@@ -13,6 +13,7 @@
 | 创建 persona | POST | /api/personas | 根据自述生成 persona |
 | 更新 persona | PUT | /api/personas/{personaId} | 更新 persona 描述 |
 | 获取联系人列表 | GET | /api/contacts | 分页返回通讯录联系人 |
+| 创建联系人 | POST | /api/contacts | 创建 AI 联系人（通讯录仅展示 AI） |
 | 搜索联系人 | GET | /api/contacts/search | 通过关键词搜索 |
 | 修改联系人分组 | PUT | /api/contacts/{contactId}/group | 设置分组或标签 |
 | 创建会话 | POST | /api/conversations | 创建单聊或群聊 |
@@ -21,6 +22,8 @@
 | 发送消息 | POST | /api/conversations/{conversationId}/messages | 发送文本或多媒体消息 |
 | 获取消息列表 | GET | /api/conversations/{conversationId}/messages | 分页获取历史消息 |
 | 撤回/删除消息 | DELETE | /api/messages/{messageId} | 撤回或删除消息 |
+| 消息已读 | POST | /api/messages/{messageId}/read | 标记消息已读 |
+| 输入状态 | POST | /api/conversations/{conversationId}/typing | 上报输入中状态 |
 | 上传媒体 | POST | /api/media/upload | 上传图片、视频或文件 |
 | 发布动态 | POST | /api/feeds | 发布朋友圈动态 |
 | 获取动态流 | GET | /api/feeds | 获取推荐的动态 |
@@ -29,6 +32,10 @@
 | 通知列表 | GET | /api/notifications | 获取用户通知 |
 | AI 回复 | POST | /api/ai/reply | 提交对话上下文，生成 AI 回复 |
 | AI 动态 | POST | /api/ai/feed | 请求 AI 生成朋友圈动态 |
+| A2A 对话 | POST | /api/a2a/chat | 多代理编排对话 |
+| A2A 自举 | POST | /api/a2a/bootstrap | 初始化 self-agent 与 AI 联系人 |
+| A2A 模拟 | POST | /api/a2a/simulate | 后台剧情/自发互动 |
+| A2A 工具 | GET | /api/a2a/tools | Tool schema 查询 |
 | 图关系查询 | GET | /api/relationships/{userId} | 查询用户与代理的关系 |
 | 定时任务管理 | POST | /api/scheduler/tasks | 创建/更新 AI 行为计划 |
 

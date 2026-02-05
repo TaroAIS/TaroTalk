@@ -4,19 +4,20 @@
 
 ### Persona 构建与维护
 1. **创建 persona**：当用户首次提供描述时，Persona Service 调用 AI Service，发送包含用户描述的 Prompt，LLM 返回结构化的 persona，包括性格关键词、兴趣、职业等。Persona Service 将结果保存到关系数据库并生成嵌入向量存入向量数据库。
-2. **记忆事件记录**：每当用户或 AI 代理发生行为（发送消息、发布动态、点赞等），业务服务生成一个 Event 记录写入事件表，并异步推送到 AI Service。
-3. **反思与总结**：Scheduler Service 周期性触发任务，从向量数据库检索与当前主题或目标相关的记忆，生成总结并更新 persona 描述；更新后通知相关服务（如 Feed 推荐）刷新缓存。
-4. **关系网络更新**：Relationship Service 监听事件流，根据互动频次和亲密度调整 Neo4j 中的边权重；当权重达到阈值时触发系统推送（如新推荐的 AI 角色）。
+2. **自举 AI 联系人**：Persona 创建完成后，Persona Service 调用 Orchestrator 的 /a2a/bootstrap，生成 self-agent 与多名 AI 联系人；User/Contact/Relationship 服务建立 AI-only 通讯录与关系边。
+3. **记忆事件记录**：每当用户或 AI 代理发生行为（发送消息、发布动态、点赞等），业务服务生成一个 Event 记录写入事件表，并异步推送到 AI Service。
+4. **反思与总结**：Scheduler Service 周期性触发任务，从向量数据库检索与当前主题或目标相关的记忆，生成总结并更新 persona 描述；更新后通知相关服务（如 Feed 推荐）刷新缓存。
+5. **关系网络更新**：Relationship Service 监听事件流，根据互动频次和亲密度调整 Neo4j 中的边权重；当权重达到阈值时触发系统推送（如新推荐的 AI 角色）。
 
 ### 对话生成流程
-1. 当客户端发送消息到 AI 代理时，Chat Service 将消息作为用户输入，调用 AI Service；
-2. AI Service 构建 Prompt：包含当前对话上下文、相关记忆、双方 persona 以及高层目标；
-3. LLM 返回生成的回复文本；AI Service 做安全过滤（敏感词检测）后返回 Chat Service；
+1. 当客户端发送消息到 AI 代理时，Chat Service 将消息作为用户输入，调用 Orchestrator；
+2. Orchestrator 构建 Prompt：包含当前对话上下文、相关记忆、双方 persona 以及高层目标，并进行导演式轮次控制；
+3. LLM 返回多角色回复文本；Orchestrator 在需要时调用工具接口（send_message/post_feed/update_relationship 等）；
 4. Chat Service 将回复写入消息存储，并通过 WebSocket 推送给客户端。
 
 ### 自动剧情与任务调度
-- Scheduler Service 根据配置规则（如每天 9:00）触发 AI 代理发送问候消息或发布动态。
-- Scheduler Service 调用 AI Service 生成内容，再调用 Chat/Feed Service 发布。
+- Scheduler Service 根据配置规则（如每天 9:00）触发 Orchestrator /a2a/simulate 推进剧情。
+- Orchestrator 调用 Chat/Feed/Relationship 等工具接口发布消息与动态。
 - 所有自动生成的消息和动态都记录事件，参与亲密度计算。
 
 ## 错误处理与异常管理

@@ -1,0 +1,426 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: tarotalk
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gateway
+  namespace: tarotalk
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: gateway
+  template:
+    metadata:
+      labels:
+        app: gateway
+    spec:
+      containers:
+        - name: gateway
+          image: tarotalk/gateway:latest
+          ports:
+            - containerPort: 8080
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: gateway
+  namespace: tarotalk
+spec:
+  selector:
+    app: gateway
+  ports:
+    - port: 8080
+      targetPort: 8080
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: auth-service
+  namespace: tarotalk
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: auth-service
+  template:
+    metadata:
+      labels:
+        app: auth-service
+    spec:
+      containers:
+        - name: auth-service
+          image: tarotalk/auth-service:latest
+          ports:
+            - containerPort: 8081
+          env:
+            - name: INTEGRATIONS_USER_SERVICE_BASE_URL
+              value: http://user-service:8082
+            - name: SECURITY_JWT_SECRET
+              value: change-me
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: auth-service
+  namespace: tarotalk
+spec:
+  selector:
+    app: auth-service
+  ports:
+    - port: 8081
+      targetPort: 8081
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: user-service
+  namespace: tarotalk
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: user-service
+  template:
+    metadata:
+      labels:
+        app: user-service
+    spec:
+      containers:
+        - name: user-service
+          image: tarotalk/user-service:latest
+          ports:
+            - containerPort: 8082
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: user-service
+  namespace: tarotalk
+spec:
+  selector:
+    app: user-service
+  ports:
+    - port: 8082
+      targetPort: 8082
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: persona-service
+  namespace: tarotalk
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: persona-service
+  template:
+    metadata:
+      labels:
+        app: persona-service
+    spec:
+      containers:
+        - name: persona-service
+          image: tarotalk/persona-service:latest
+          ports:
+            - containerPort: 8083
+          env:
+            - name: INTEGRATIONS_AI_SERVICE_BASE_URL
+              value: http://ai-service:8090
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: persona-service
+  namespace: tarotalk
+spec:
+  selector:
+    app: persona-service
+  ports:
+    - port: 8083
+      targetPort: 8083
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ai-service
+  namespace: tarotalk
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ai-service
+  template:
+    metadata:
+      labels:
+        app: ai-service
+    spec:
+      containers:
+        - name: ai-service
+          image: tarotalk/ai-service:latest
+          ports:
+            - containerPort: 8090
+          env:
+            - name: LLM_API_BASE_URL
+              value: ""
+            - name: LLM_API_KEY
+              value: ""
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ai-service
+  namespace: tarotalk
+spec:
+  selector:
+    app: ai-service
+  ports:
+    - port: 8090
+      targetPort: 8090
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: chat-service
+  namespace: tarotalk
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: chat-service
+  template:
+    metadata:
+      labels:
+        app: chat-service
+    spec:
+      containers:
+        - name: chat-service
+          image: tarotalk/chat-service:latest
+          ports:
+            - containerPort: 8084
+          env:
+            - name: INTEGRATIONS_AI_SERVICE_BASE_URL
+              value: http://ai-service:8090
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: chat-service
+  namespace: tarotalk
+spec:
+  selector:
+    app: chat-service
+  ports:
+    - port: 8084
+      targetPort: 8084
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: feed-service
+  namespace: tarotalk
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: feed-service
+  template:
+    metadata:
+      labels:
+        app: feed-service
+    spec:
+      containers:
+        - name: feed-service
+          image: tarotalk/feed-service:latest
+          ports:
+            - containerPort: 8085
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: feed-service
+  namespace: tarotalk
+spec:
+  selector:
+    app: feed-service
+  ports:
+    - port: 8085
+      targetPort: 8085
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: presence-service
+  namespace: tarotalk
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: presence-service
+  template:
+    metadata:
+      labels:
+        app: presence-service
+    spec:
+      containers:
+        - name: presence-service
+          image: tarotalk/presence-service:latest
+          ports:
+            - containerPort: 8086
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: presence-service
+  namespace: tarotalk
+spec:
+  selector:
+    app: presence-service
+  ports:
+    - port: 8086
+      targetPort: 8086
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: notification-service
+  namespace: tarotalk
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: notification-service
+  template:
+    metadata:
+      labels:
+        app: notification-service
+    spec:
+      containers:
+        - name: notification-service
+          image: tarotalk/notification-service:latest
+          ports:
+            - containerPort: 8087
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: notification-service
+  namespace: tarotalk
+spec:
+  selector:
+    app: notification-service
+  ports:
+    - port: 8087
+      targetPort: 8087
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: relationship-service
+  namespace: tarotalk
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: relationship-service
+  template:
+    metadata:
+      labels:
+        app: relationship-service
+    spec:
+      containers:
+        - name: relationship-service
+          image: tarotalk/relationship-service:latest
+          ports:
+            - containerPort: 8088
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: relationship-service
+  namespace: tarotalk
+spec:
+  selector:
+    app: relationship-service
+  ports:
+    - port: 8088
+      targetPort: 8088
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: scheduler-service
+  namespace: tarotalk
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: scheduler-service
+  template:
+    metadata:
+      labels:
+        app: scheduler-service
+    spec:
+      containers:
+        - name: scheduler-service
+          image: tarotalk/scheduler-service:latest
+          ports:
+            - containerPort: 8089
+          env:
+            - name: INTEGRATIONS_AI_SERVICE_BASE_URL
+              value: http://ai-service:8090
+            - name: INTEGRATIONS_CHAT_SERVICE_BASE_URL
+              value: http://chat-service:8084
+            - name: INTEGRATIONS_FEED_SERVICE_BASE_URL
+              value: http://feed-service:8085
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: scheduler-service
+  namespace: tarotalk
+spec:
+  selector:
+    app: scheduler-service
+  ports:
+    - port: 8089
+      targetPort: 8089
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend
+  namespace: tarotalk
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: frontend
+  template:
+    metadata:
+      labels:
+        app: frontend
+    spec:
+      containers:
+        - name: frontend
+          image: tarotalk/frontend:latest
+          ports:
+            - containerPort: 3000
+          env:
+            - name: NEXT_PUBLIC_API_BASE
+              value: http://gateway:8080
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend
+  namespace: tarotalk
+spec:
+  selector:
+    app: frontend
+  ports:
+    - port: 3000
+      targetPort: 3000

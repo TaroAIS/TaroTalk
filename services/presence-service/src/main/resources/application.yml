@@ -4,6 +4,9 @@ server:
 spring:
   application:
     name: tarotalk-presence-service
+  redis:
+    host: localhost
+    port: 6379
 
 management:
   endpoints:

@@ -4,6 +4,25 @@ server:
 spring:
   application:
     name: tarotalk-chat-service
+  datasource:
+    url: jdbc:h2:mem:chatdb;DB_CLOSE_DELAY=-1
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+  data:
+    mongodb:
+      uri: mongodb://localhost:27017/tarotalk_chat
+  redis:
+    host: localhost
+    port: 6379
+
+integrations:
+  ai-service:
+    base-url: http://localhost:8090
 
 management:
   endpoints:

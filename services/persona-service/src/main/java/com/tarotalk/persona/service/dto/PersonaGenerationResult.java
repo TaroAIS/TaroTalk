@@ -25,7 +25,8 @@ public class PersonaGenerationResult {
         Object data = response.get("data");
         if (data instanceof Map) {
             Map<?, ?> dataMap = (Map<?, ?>) data;
-            String summary = String.valueOf(dataMap.getOrDefault("summary", fallback));
+            Object summaryObj = dataMap.containsKey("summary") ? dataMap.get("summary") : fallback;
+            String summary = String.valueOf(summaryObj);
             Object traits = dataMap.get("traits");
             if (traits instanceof Map) {
                 return new PersonaGenerationResult(summary, (Map<String, Object>) traits);

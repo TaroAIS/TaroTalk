@@ -2,6 +2,8 @@ package com.tarotalk.user.domain;
 
 import javax.persistence.Column;
 import javax.persistence.Entity;
+import javax.persistence.EnumType;
+import javax.persistence.Enumerated;
 import javax.persistence.Id;
 import javax.persistence.Table;
 import java.time.Instant;
@@ -26,6 +28,13 @@ public class UserProfile {
     @Column
     private String email;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "user_type", nullable = false)
+    private UserType userType;
+
+    @Column(name = "owner_user_id")
+    private UUID ownerUserId;
+
     @Column(nullable = false)
     private int status;
 
@@ -42,6 +51,7 @@ public class UserProfile {
         this.userId = userId;
         this.nickname = nickname;
         this.avatarUrl = avatarUrl;
+        this.userType = UserType.HUMAN;
         this.status = 1;
         this.createdAt = Instant.now();
         this.updatedAt = Instant.now();
@@ -85,6 +95,22 @@ public class UserProfile {
 
     public void setEmail(String email) {
         this.email = email;
+    }
+
+    public UserType getUserType() {
+        return userType;
+    }
+
+    public void setUserType(UserType userType) {
+        this.userType = userType;
+    }
+
+    public UUID getOwnerUserId() {
+        return ownerUserId;
+    }
+
+    public void setOwnerUserId(UUID ownerUserId) {
+        this.ownerUserId = ownerUserId;
     }
 
     public int getStatus() {

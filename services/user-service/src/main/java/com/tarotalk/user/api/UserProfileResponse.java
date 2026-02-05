@@ -11,6 +11,8 @@ public class UserProfileResponse {
     private String avatarUrl;
     private String phone;
     private String email;
+    private String userType;
+    private UUID ownerUserId;
     private int status;
     private Instant createdAt;
     private Instant updatedAt;
@@ -22,6 +24,8 @@ public class UserProfileResponse {
         response.avatarUrl = profile.getAvatarUrl();
         response.phone = profile.getPhone();
         response.email = profile.getEmail();
+        response.userType = profile.getUserType() == null ? null : profile.getUserType().name();
+        response.ownerUserId = profile.getOwnerUserId();
         response.status = profile.getStatus();
         response.createdAt = profile.getCreatedAt();
         response.updatedAt = profile.getUpdatedAt();
@@ -46,6 +50,14 @@ public class UserProfileResponse {
 
     public String getEmail() {
         return email;
+    }
+
+    public String getUserType() {
+        return userType;
+    }
+
+    public UUID getOwnerUserId() {
+        return ownerUserId;
     }
 
     public int getStatus() {

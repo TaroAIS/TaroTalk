@@ -18,6 +18,11 @@ public class ContactController {
         this.contactService = contactService;
     }
 
+    @PostMapping
+    public ApiResponse<ContactResponse> create(@Valid @RequestBody CreateContactRequest request) {
+        return ApiResponse.ok(ContactResponse.from(contactService.createContact(request)));
+    }
+
     @GetMapping
     public ApiResponse<PageResponse<ContactResponse>> list(@RequestParam UUID userId,
                                                            @RequestParam(defaultValue = "0") int page,

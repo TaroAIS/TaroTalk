@@ -4,6 +4,7 @@ import com.tarotalk.common.exception.ApiException;
 import com.tarotalk.user.api.CreateUserRequest;
 import com.tarotalk.user.api.UserUpdateRequest;
 import com.tarotalk.user.domain.UserProfile;
+import com.tarotalk.user.domain.UserType;
 import com.tarotalk.user.repo.UserProfileRepository;
 import org.springframework.stereotype.Service;
 
@@ -27,6 +28,12 @@ public class UserService {
         UserProfile profile = new UserProfile(userId, nickname, request.getAvatarUrl());
         profile.setPhone(request.getPhone());
         profile.setEmail(request.getEmail());
+        UserType userType = resolveUserType(request.getUserType());
+        if (userType != UserType.HUMAN && request.getOwnerUserId() == null) {
+            throw new ApiException("VALIDATION_ERROR", "ownerUserId is required for AI/BRAND user");
+        }
+        profile.setUserType(userType);
+        profile.setOwnerUserId(request.getOwnerUserId());
         return userProfileRepository.save(profile);
     }
 
@@ -45,5 +52,16 @@ public class UserService {
         }
         profile.setUpdatedAt(Instant.now());
         return userProfileRepository.save(profile);
+    }
+
+    private UserType resolveUserType(String userType) {
+        if (userType == null || userType.trim().isEmpty()) {
+            return UserType.HUMAN;
+        }
+        try {
+            return UserType.valueOf(userType.toUpperCase());
+        } catch (IllegalArgumentException ex) {
+            throw new ApiException("VALIDATION_ERROR", "invalid userType");
+        }
     }
 }

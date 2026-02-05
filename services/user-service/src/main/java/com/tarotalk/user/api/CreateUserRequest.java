@@ -8,6 +8,8 @@ public class CreateUserRequest {
     private String avatarUrl;
     private String phone;
     private String email;
+    private String userType;
+    private UUID ownerUserId;
 
     public UUID getUserId() {
         return userId;
@@ -47,5 +49,21 @@ public class CreateUserRequest {
 
     public void setEmail(String email) {
         this.email = email;
+    }
+
+    public String getUserType() {
+        return userType;
+    }
+
+    public void setUserType(String userType) {
+        this.userType = userType;
+    }
+
+    public UUID getOwnerUserId() {
+        return ownerUserId;
+    }
+
+    public void setOwnerUserId(UUID ownerUserId) {
+        this.ownerUserId = ownerUserId;
     }
 }

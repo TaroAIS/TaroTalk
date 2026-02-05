@@ -5,6 +5,7 @@ import com.tarotalk.chat.api.MessageSendRequest;
 import com.tarotalk.chat.domain.ChatMessage;
 import com.tarotalk.chat.domain.Conversation;
 import com.tarotalk.chat.repo.ChatMessageRepository;
+import com.tarotalk.chat.repo.ConversationParticipantRepository;
 import com.tarotalk.chat.repo.ConversationRepository;
 import com.tarotalk.chat.websocket.WebSocketPublisher;
 import com.tarotalk.common.api.PageResponse;

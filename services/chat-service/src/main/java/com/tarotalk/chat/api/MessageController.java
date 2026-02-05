@@ -45,6 +45,19 @@ public class MessageController {
         return ApiResponse.ok(MessageResponse.from(messageService.deleteMessage(messageId)));
     }
 
+    @PostMapping("/messages/{messageId}/read")
+    public ApiResponse<MessageResponse> markRead(@PathVariable String messageId,
+                                                 @RequestParam UUID userId) {
+        return ApiResponse.ok(MessageResponse.from(messageService.markRead(messageId, userId)));
+    }
+
+    @PostMapping("/conversations/{conversationId}/typing")
+    public ApiResponse<Void> typing(@PathVariable UUID conversationId,
+                                    @Valid @RequestBody TypingRequest request) {
+        messageService.publishTyping(conversationId, request.getUserId(), request.isTyping());
+        return ApiResponse.ok(null);
+    }
+
     @PostMapping("/media/upload")
     public ApiResponse<MediaUploadResponse> upload() {
         return ApiResponse.ok(new MediaUploadResponse("https://example.com/media/placeholder"));

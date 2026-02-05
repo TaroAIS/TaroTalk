@@ -23,6 +23,8 @@ spring:
 integrations:
   ai-service:
     base-url: http://localhost:8090
+  orchestrator:
+    base-url: http://localhost:8077
 
 management:
   endpoints:

@@ -22,15 +22,18 @@ public class MessageService {
     private final ChatMessageRepository chatMessageRepository;
     private final ConversationRepository conversationRepository;
     private final AiClient aiClient;
+    private final OrchestratorClient orchestratorClient;
     private final WebSocketPublisher webSocketPublisher;
 
     public MessageService(ChatMessageRepository chatMessageRepository,
                           ConversationRepository conversationRepository,
                           AiClient aiClient,
+                          OrchestratorClient orchestratorClient,
                           WebSocketPublisher webSocketPublisher) {
         this.chatMessageRepository = chatMessageRepository;
         this.conversationRepository = conversationRepository;
         this.aiClient = aiClient;
+        this.orchestratorClient = orchestratorClient;
         this.webSocketPublisher = webSocketPublisher;
     }
 
@@ -51,7 +54,10 @@ public class MessageService {
         webSocketPublisher.publish(conversationId.toString(), saved);
 
         if (request.isGenerateAiReply()) {
-            String replyText = aiClient.generateReply(request.getPersonaSummary(), conversationId.toString(), safeContext(request.getContext()));
+            String replyText = orchestratorClient.generateReply(conversationId.toString(), request.getPersonaSummary(), safeContext(request.getContext()));
+            if (replyText == null || replyText.isEmpty()) {
+                replyText = aiClient.generateReply(request.getPersonaSummary(), conversationId.toString(), safeContext(request.getContext()));
+            }
             if (replyText != null && !replyText.isEmpty()) {
                 ChatMessage aiMessage = new ChatMessage();
                 aiMessage.setConversationId(conversationId);
@@ -79,6 +85,25 @@ public class MessageService {
                 .orElseThrow(() -> new ApiException("NOT_FOUND", "message not found"));
         message.setContent("[deleted]");
         return chatMessageRepository.save(message);
+    }
+
+    public ChatMessage markRead(String messageId, UUID readerId) {
+        ChatMessage message = chatMessageRepository.findById(messageId)
+                .orElseThrow(() -> new ApiException("NOT_FOUND", "message not found"));
+        message.setReadAt(Instant.now());
+        ChatMessage saved = chatMessageRepository.save(message);
+        java.util.Map<String, Object> payload = new java.util.HashMap<>();
+        payload.put("messageId", messageId);
+        payload.put("userId", readerId.toString());
+        webSocketPublisher.publishEvent(saved.getConversationId().toString(), "read", payload);
+        return saved;
+    }
+
+    public void publishTyping(UUID conversationId, UUID userId, boolean typing) {
+        java.util.Map<String, Object> payload = new java.util.HashMap<>();
+        payload.put("userId", userId.toString());
+        payload.put("typing", typing);
+        webSocketPublisher.publishEvent(conversationId.toString(), "typing", payload);
     }
 
     private List<MessageContext> safeContext(List<MessageContext> context) {

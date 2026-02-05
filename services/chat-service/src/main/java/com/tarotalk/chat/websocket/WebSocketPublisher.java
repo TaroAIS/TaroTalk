@@ -8,6 +8,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
 
+import java.util.HashMap;
 import java.util.Set;
 
 @Component
@@ -35,6 +36,26 @@ public class WebSocketPublisher {
             }
         } catch (Exception ex) {
             log.warn("websocket publish failed: {}", ex.getMessage());
+        }
+    }
+
+    public void publishEvent(String conversationId, String eventType, Object data) {
+        Set<WebSocketSession> sessions = registry.getSessions(conversationId);
+        if (sessions.isEmpty()) {
+            return;
+        }
+        try {
+            HashMap<String, Object> payload = new HashMap<>();
+            payload.put("type", eventType);
+            payload.put("data", data);
+            String json = objectMapper.writeValueAsString(payload);
+            for (WebSocketSession session : sessions) {
+                if (session.isOpen()) {
+                    session.sendMessage(new TextMessage(json));
+                }
+            }
+        } catch (Exception ex) {
+            log.warn("websocket publish event failed: {}", ex.getMessage());
         }
     }
 }

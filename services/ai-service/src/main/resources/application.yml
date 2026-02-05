@@ -5,6 +5,12 @@ spring:
   application:
     name: tarotalk-ai-service
 
+ai:
+  provider:
+    base-url: ${LLM_API_BASE_URL:}
+    api-key: ${LLM_API_KEY:}
+    model: ${LLM_MODEL:gpt-4o-mini}
+
 management:
   endpoints:
     web:

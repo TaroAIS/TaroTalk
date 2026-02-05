@@ -4,6 +4,25 @@ server:
 spring:
   application:
     name: tarotalk-persona-service
+  datasource:
+    url: jdbc:h2:mem:personadb;DB_CLOSE_DELAY=-1
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+  redis:
+    host: localhost
+    port: 6379
+
+integrations:
+  ai-service:
+    base-url: http://localhost:8090
+
+vector-store:
+  base-url: ${VECTOR_STORE_URL:}
 
 management:
   endpoints:

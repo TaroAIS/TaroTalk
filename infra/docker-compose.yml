@@ -30,7 +30,9 @@ services:
       USER_SERVICE_URL: http://user-service:8082
       CONTACT_SERVICE_URL: http://user-service:8082
       RELATIONSHIP_SERVICE_URL: http://relationship-service:8088
+      PERSONA_SERVICE_URL: http://persona-service:8083
       CHAT_SERVICE_URL: http://chat-service:8084
       FEED_SERVICE_URL: http://feed-service:8085
+      NOTIFICATION_SERVICE_URL: http://notification-service:8087
     ports:
       - "8077:8077"

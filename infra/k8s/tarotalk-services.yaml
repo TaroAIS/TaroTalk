@@ -210,10 +210,14 @@ spec:
               value: http://user-service:8082
             - name: RELATIONSHIP_SERVICE_URL
               value: http://relationship-service:8088
+            - name: PERSONA_SERVICE_URL
+              value: http://persona-service:8083
             - name: CHAT_SERVICE_URL
               value: http://chat-service:8084
             - name: FEED_SERVICE_URL
               value: http://feed-service:8085
+            - name: NOTIFICATION_SERVICE_URL
+              value: http://notification-service:8087
 ---
 apiVersion: v1
 kind: Service

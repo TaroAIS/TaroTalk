@@ -2,7 +2,7 @@ from typing import List, Dict, Any
 
 
 def tool_registry() -> List[Dict[str, Any]]:
-    return [
+    tools = [
         {
             "name": "send_message",
             "description": "Send a message to a conversation",
@@ -77,3 +77,4 @@ def tool_registry() -> List[Dict[str, Any]]:
             }
         }
     ]
+    return [{"type": "function", "function": tool} for tool in tools]

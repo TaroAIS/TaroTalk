@@ -12,19 +12,13 @@ import java.util.concurrent.CopyOnWriteArrayList;
 @Service
 public class TaskSchedulerService {
     private final RestTemplate restTemplate;
-    private final String aiServiceUrl;
-    private final String chatServiceUrl;
-    private final String feedServiceUrl;
+    private final String orchestratorUrl;
     private final List<TaskRequest> tasks = new CopyOnWriteArrayList<>();
 
     public TaskSchedulerService(RestTemplate restTemplate,
-                                @Value("${integrations.ai-service.base-url}") String aiServiceUrl,
-                                @Value("${integrations.chat-service.base-url}") String chatServiceUrl,
-                                @Value("${integrations.feed-service.base-url}") String feedServiceUrl) {
+                                @Value("${integrations.orchestrator.base-url}") String orchestratorUrl) {
         this.restTemplate = restTemplate;
-        this.aiServiceUrl = aiServiceUrl;
-        this.chatServiceUrl = chatServiceUrl;
-        this.feedServiceUrl = feedServiceUrl;
+        this.orchestratorUrl = orchestratorUrl;
     }
 
     public void register(TaskRequest request) {
@@ -38,33 +32,16 @@ public class TaskSchedulerService {
     @Scheduled(fixedDelayString = "${scheduler.loop-delay-ms:60000}")
     public void runTasks() {
         for (TaskRequest task : tasks) {
-            if ("CHAT".equalsIgnoreCase(task.getTaskType())) {
-                triggerChat(task);
-            } else if ("FEED".equalsIgnoreCase(task.getTaskType())) {
-                triggerFeed(task);
-            }
+            triggerSimulation(task);
         }
     }
 
-    private void triggerChat(TaskRequest task) {
-        if (aiServiceUrl == null || chatServiceUrl == null) {
+    private void triggerSimulation(TaskRequest task) {
+        if (orchestratorUrl == null || orchestratorUrl.trim().isEmpty()) {
             return;
         }
         try {
-            String aiPayload = restTemplate.postForObject(aiServiceUrl + "/api/ai/reply", task, String.class);
-            restTemplate.postForObject(chatServiceUrl + "/api/conversations/" + task.getTargetId() + "/messages", task, String.class);
-        } catch (Exception ex) {
-            // swallow for now
-        }
-    }
-
-    private void triggerFeed(TaskRequest task) {
-        if (aiServiceUrl == null || feedServiceUrl == null) {
-            return;
-        }
-        try {
-            restTemplate.postForObject(aiServiceUrl + "/api/ai/feed", task, String.class);
-            restTemplate.postForObject(feedServiceUrl + "/api/feeds", task, String.class);
+            restTemplate.postForObject(orchestratorUrl + "/a2a/simulate", task, String.class);
         } catch (Exception ex) {
             // swallow for now
         }

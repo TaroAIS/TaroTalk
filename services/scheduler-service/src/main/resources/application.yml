@@ -6,12 +6,8 @@ spring:
     name: tarotalk-scheduler-service
 
 integrations:
-  ai-service:
-    base-url: http://localhost:8090
-  chat-service:
-    base-url: http://localhost:8084
-  feed-service:
-    base-url: http://localhost:8085
+  orchestrator:
+    base-url: http://localhost:8077
 
 scheduler:
   loop-delay-ms: 60000

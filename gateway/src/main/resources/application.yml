@@ -49,6 +49,10 @@ spring:
           uri: http://localhost:8090
           predicates:
             - Path=/api/ai/**
+        - id: orchestrator
+          uri: http://localhost:8077
+          predicates:
+            - Path=/api/a2a/**
 
 management:
   endpoints:

@@ -4,6 +4,24 @@ server:
 spring:
   application:
     name: tarotalk-auth-service
+  datasource:
+    url: jdbc:h2:mem:authdb;DB_CLOSE_DELAY=-1
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+
+security:
+  jwt:
+    secret: "dev-secret-change-me-dev-secret-change-me"
+    expiration-seconds: 3600
+
+integrations:
+  user-service:
+    base-url: http://localhost:8082
 
 management:
   endpoints:

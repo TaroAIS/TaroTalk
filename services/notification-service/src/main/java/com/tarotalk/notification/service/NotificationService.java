@@ -7,6 +7,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 public class NotificationService {
@@ -21,7 +22,16 @@ public class NotificationService {
         return notificationRepository.save(notification);
     }
 
-    public List<Notification> list(UUID userId) {
-        return notificationRepository.findByUserIdOrderByCreatedAtDesc(userId);
+    public List<Notification> list(UUID userId, List<Notification.Type> types, Integer limit) {
+        List<Notification> notifications = notificationRepository.findByUserIdOrderByCreatedAtDesc(userId);
+        if (types != null && !types.isEmpty()) {
+            notifications = notifications.stream()
+                    .filter(notification -> types.contains(notification.getType()))
+                    .collect(Collectors.toList());
+        }
+        if (limit != null && limit > 0 && notifications.size() > limit) {
+            return notifications.subList(0, limit);
+        }
+        return notifications;
     }
 }

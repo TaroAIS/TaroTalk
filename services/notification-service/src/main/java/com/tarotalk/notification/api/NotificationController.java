@@ -21,8 +21,10 @@ public class NotificationController {
     }
 
     @GetMapping
-    public ApiResponse<List<NotificationResponse>> list(@RequestParam UUID userId) {
-        List<NotificationResponse> notifications = notificationService.list(userId).stream()
+    public ApiResponse<List<NotificationResponse>> list(@RequestParam UUID userId,
+                                                        @RequestParam(required = false) List<com.tarotalk.notification.domain.Notification.Type> types,
+                                                        @RequestParam(required = false) Integer limit) {
+        List<NotificationResponse> notifications = notificationService.list(userId, types, limit).stream()
                 .map(NotificationResponse::from)
                 .collect(Collectors.toList());
         return ApiResponse.ok(notifications);

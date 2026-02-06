@@ -17,7 +17,10 @@ public class Notification {
         COMMENT,
         FRIEND_REQUEST,
         SYSTEM,
-        AD
+        AD,
+        FEED_CREATED,
+        FEED_LIKED,
+        FEED_COMMENTED
     }
 
     public enum Status {

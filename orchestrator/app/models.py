@@ -10,6 +10,7 @@ class Message(BaseModel):
 class A2AChatRequest(BaseModel):
     conversation_id: str
     participants: List[str]
+    sender_id: Optional[str] = None
     persona_summary: Optional[str] = None
     messages: List[Message]
 

@@ -12,6 +12,8 @@ class ToolExecutor:
             return await self._send_message(arguments)
         if name == "post_feed":
             return await self._post_feed(arguments)
+        if name == "like_feed":
+            return await self._like_feed(arguments)
         if name == "update_relationship":
             return await self._update_relationship(arguments)
         if name == "get_persona":
@@ -38,6 +40,14 @@ class ToolExecutor:
             "content": args["content"],
         }
         res = await self.client.post(f"{settings.feed_service_url}/api/feeds", json=payload)
+        return res.json()
+
+    async def _like_feed(self, args: Dict[str, Any]) -> Dict[str, Any]:
+        feed_id = args["feed_id"]
+        payload = {
+            "userId": args["user_id"],
+        }
+        res = await self.client.post(f"{settings.feed_service_url}/api/feeds/{feed_id}/like", json=payload)
         return res.json()
 
     async def _update_relationship(self, args: Dict[str, Any]) -> Dict[str, Any]:

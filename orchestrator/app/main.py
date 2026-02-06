@@ -98,7 +98,7 @@ async def bootstrap(request: BootstrapRequest):
 @router.post("/chat", response_model=A2AChatResponse)
 async def chat(request: A2AChatRequest):
     messages = [msg.model_dump() for msg in request.messages]
-    result = await engine.run_chat(messages, request.persona_summary, request.participants, rounds=2)
+    result = await engine.run_chat(messages, request.persona_summary, request.participants, request.sender_id, rounds=2)
     trace_id = str(uuid.uuid4())
     return A2AChatResponse(reply=result["reply"], tool_calls=result["tool_calls"], trace_id=trace_id)
 

@@ -29,6 +29,18 @@ def tool_registry() -> List[Dict[str, Any]]:
             }
         },
         {
+            "name": "like_feed",
+            "description": "Like a feed item",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "feed_id": {"type": "string"},
+                    "user_id": {"type": "string"}
+                },
+                "required": ["feed_id", "user_id"]
+            }
+        },
+        {
             "name": "update_relationship",
             "description": "Update relationship score",
             "parameters": {

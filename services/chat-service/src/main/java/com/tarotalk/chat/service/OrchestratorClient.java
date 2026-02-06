@@ -20,13 +20,18 @@ public class OrchestratorClient {
         this.orchestratorUrl = orchestratorUrl;
     }
 
-    public String generateReply(String conversationId, String personaSummary, List<MessageContext> context, List<java.util.UUID> participants) {
+    public String generateReply(String conversationId,
+                                String personaSummary,
+                                List<MessageContext> context,
+                                List<java.util.UUID> participants,
+                                java.util.UUID senderId) {
         if (orchestratorUrl == null || orchestratorUrl.trim().isEmpty()) {
             return "";
         }
         Map<String, Object> payload = new HashMap<>();
         payload.put("conversation_id", conversationId);
         payload.put("participants", participants);
+        payload.put("sender_id", senderId == null ? null : senderId.toString());
         payload.put("persona_summary", personaSummary);
         payload.put("messages", context);
         Map response = restTemplate.postForObject(orchestratorUrl + "/a2a/chat", payload, Map.class);

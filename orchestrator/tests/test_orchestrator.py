@@ -39,7 +39,7 @@ def test_run_chat_multi_step(monkeypatch):
     engine.executor = DummyExecutor()
 
     result = asyncio.get_event_loop().run_until_complete(
-        engine.run_chat([{"role": "user", "content": "hi"}], "persona", ["u1", "u2"], rounds=2)
+        engine.run_chat([{"role": "user", "content": "hi"}], "persona", ["u1", "u2"], "u1", rounds=2)
     )
     assert result["reply"] == "final reply"
     assert result["tool_calls"][0]["name"] == "get_contacts"
@@ -47,6 +47,7 @@ def test_run_chat_multi_step(monkeypatch):
 
 def test_director_roles(monkeypatch):
     def fake_completion(messages, tools=None, tool_choice=None):
+        assert any("Memory for speakers" in msg.get("content", "") for msg in messages if msg.get("role") == "system")
         return {"choices": [{"message": {"content": "[self-agent] hello"}}]}
 
     class DummyExecutor:
@@ -54,10 +55,13 @@ def test_director_roles(monkeypatch):
             return {"ok": True}
 
     monkeypatch.setattr(orch_module, "run_completion", fake_completion)
+    async def fake_load_memories(role_map):
+        return {"self-agent": "FEED_CREATED: {\"feedId\":\"f1\"}"}
     engine = OrchestratorEngine(max_steps=1, max_tool_calls=1)
     engine.executor = DummyExecutor()
+    monkeypatch.setattr(engine, "_load_memories", fake_load_memories)
 
     result = asyncio.get_event_loop().run_until_complete(
-        engine.run_chat([{"role": "user", "content": "hi"}], "persona", ["u1", "u2"], rounds=2)
+        engine.run_chat([{"role": "user", "content": "hi"}], "persona", ["u1", "u2"], "u1", rounds=2)
     )
     assert "[self-agent]" in result["reply"]

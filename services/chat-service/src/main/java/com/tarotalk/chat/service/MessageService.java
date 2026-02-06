@@ -62,7 +62,7 @@ public class MessageService {
                     .stream()
                     .map(com.tarotalk.chat.domain.ConversationParticipant::getUserId)
                     .collect(java.util.stream.Collectors.toList());
-            String replyText = orchestratorClient.generateReply(conversationId.toString(), request.getPersonaSummary(), safeContext(request.getContext()), participants);
+            String replyText = orchestratorClient.generateReply(conversationId.toString(), request.getPersonaSummary(), safeContext(request.getContext()), participants, request.getSenderId());
             if (replyText == null || replyText.isEmpty()) {
                 replyText = aiClient.generateReply(request.getPersonaSummary(), conversationId.toString(), safeContext(request.getContext()));
             }

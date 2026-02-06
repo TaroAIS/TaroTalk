@@ -25,6 +25,9 @@ integrations:
 feed:
   visibility:
     strategy: contact
+  event:
+    ttl-hours: 72
+    max-count: 200
 
 management:
   endpoints:

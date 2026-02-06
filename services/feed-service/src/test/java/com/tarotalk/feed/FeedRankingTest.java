@@ -29,7 +29,7 @@ public class FeedRankingTest {
         FeedEventPublisher eventPublisher = mock(FeedEventPublisher.class);
         RestTemplate restTemplate = mock(RestTemplate.class);
 
-        FeedService feedService = new FeedService(feedRepository, interactionRepository, eventPublisher, restTemplate, "", "http://rel", "contact");
+        FeedService feedService = new FeedService(feedRepository, interactionRepository, eventPublisher, restTemplate, "", "http://rel", "contact", 72, 200);
 
         UUID viewerId = UUID.randomUUID();
         UUID authorA = UUID.randomUUID();
@@ -52,6 +52,34 @@ public class FeedRankingTest {
                 .thenReturn(response);
 
         List<FeedResponse> responses = feedService.buildResponses(List.of(feedA, feedB), viewerId);
+        assertEquals(authorB, responses.get(0).getAuthorId());
+    }
+
+    @Test
+    void rankingIgnoresExpiredInteractions() {
+        FeedRepository feedRepository = mock(FeedRepository.class);
+        FeedInteractionRepository interactionRepository = mock(FeedInteractionRepository.class);
+        FeedEventPublisher eventPublisher = mock(FeedEventPublisher.class);
+        RestTemplate restTemplate = mock(RestTemplate.class);
+
+        FeedService feedService = new FeedService(feedRepository, interactionRepository, eventPublisher, restTemplate, "", "", "contact", 1, 200);
+
+        UUID viewerId = UUID.randomUUID();
+        UUID authorA = UUID.randomUUID();
+        UUID authorB = UUID.randomUUID();
+
+        Feed feedB = new Feed(UUID.randomUUID(), authorB, "B");
+        Feed feedA = new Feed(UUID.randomUUID(), authorA, "A");
+        Instant same = Instant.now().minusSeconds(60);
+        feedA.setCreatedAt(same);
+        feedB.setCreatedAt(same);
+
+        FeedInteraction oldLike = new FeedInteraction(UUID.randomUUID(), feedA.getFeedId(), viewerId, FeedInteraction.Type.LIKE, null);
+        oldLike.setCreatedAt(Instant.now().minusSeconds(7200));
+
+        when(interactionRepository.findByFeedIdIn(anyList())).thenReturn(List.of(oldLike));
+
+        List<FeedResponse> responses = feedService.buildResponses(List.of(feedB, feedA), viewerId);
         assertEquals(authorB, responses.get(0).getAuthorId());
     }
 }

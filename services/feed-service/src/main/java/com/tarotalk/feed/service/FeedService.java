@@ -32,6 +32,8 @@ public class FeedService {
     private final String userServiceUrl;
     private final String relationshipServiceUrl;
     private final String visibilityStrategy;
+    private final long eventTtlHours;
+    private final int eventMaxCount;
 
     public FeedService(FeedRepository feedRepository,
                        FeedInteractionRepository interactionRepository,
@@ -39,7 +41,9 @@ public class FeedService {
                        RestTemplate restTemplate,
                        @Value("${integrations.user-service.base-url:}") String userServiceUrl,
                        @Value("${integrations.relationship-service.base-url:}") String relationshipServiceUrl,
-                       @Value("${feed.visibility.strategy:contact}") String visibilityStrategy) {
+                       @Value("${feed.visibility.strategy:contact}") String visibilityStrategy,
+                       @Value("${feed.event.ttl-hours:72}") long eventTtlHours,
+                       @Value("${feed.event.max-count:200}") int eventMaxCount) {
         this.feedRepository = feedRepository;
         this.interactionRepository = interactionRepository;
         this.eventPublisher = eventPublisher;
@@ -47,6 +51,8 @@ public class FeedService {
         this.userServiceUrl = userServiceUrl;
         this.relationshipServiceUrl = relationshipServiceUrl;
         this.visibilityStrategy = visibilityStrategy;
+        this.eventTtlHours = eventTtlHours;
+        this.eventMaxCount = eventMaxCount;
     }
 
     public Feed create(CreateFeedRequest request) {
@@ -71,7 +77,9 @@ public class FeedService {
         java.util.List<UUID> feedIds = feeds.stream().map(Feed::getFeedId).collect(java.util.stream.Collectors.toList());
         java.util.List<com.tarotalk.feed.domain.FeedInteraction> interactions = interactionRepository.findByFeedIdIn(feedIds);
         java.util.Map<UUID, long[]> stats = new java.util.HashMap<>();
+        java.util.Map<UUID, java.util.List<com.tarotalk.feed.domain.FeedInteraction>> recentInteractions = new java.util.HashMap<>();
         java.util.Set<UUID> likedByViewer = new java.util.HashSet<>();
+        java.time.Instant cutoff = java.time.Instant.now().minus(java.time.Duration.ofHours(eventTtlHours));
         for (com.tarotalk.feed.domain.FeedInteraction interaction : interactions) {
             long[] counters = stats.computeIfAbsent(interaction.getFeedId(), key -> new long[]{0L, 0L});
             if (interaction.getType() == com.tarotalk.feed.domain.FeedInteraction.Type.LIKE) {
@@ -83,6 +91,10 @@ public class FeedService {
             if (interaction.getType() == com.tarotalk.feed.domain.FeedInteraction.Type.COMMENT) {
                 counters[1] += 1;
             }
+            if (interaction.getCreatedAt() != null && interaction.getCreatedAt().isAfter(cutoff)) {
+                recentInteractions.computeIfAbsent(interaction.getFeedId(), key -> new java.util.ArrayList<>())
+                        .add(interaction);
+            }
         }
         java.util.List<Feed> ordered = feeds;
         if (viewerId != null) {
@@ -90,9 +102,15 @@ public class FeedService {
             java.util.Map<UUID, Double> scores = new java.util.HashMap<>();
             java.time.Instant now = java.time.Instant.now();
             for (Feed feed : feeds) {
-                long[] counters = stats.getOrDefault(feed.getFeedId(), new long[]{0L, 0L});
-                double likeScore = counters[0] * 0.3;
-                double commentScore = counters[1] * 0.6;
+                java.util.List<com.tarotalk.feed.domain.FeedInteraction> recent = recentInteractions.getOrDefault(feed.getFeedId(), java.util.Collections.emptyList());
+                recent.sort((a, b) -> b.getCreatedAt().compareTo(a.getCreatedAt()));
+                if (recent.size() > eventMaxCount) {
+                    recent = recent.subList(0, eventMaxCount);
+                }
+                long recentLikes = recent.stream().filter(item -> item.getType() == com.tarotalk.feed.domain.FeedInteraction.Type.LIKE).count();
+                long recentComments = recent.stream().filter(item -> item.getType() == com.tarotalk.feed.domain.FeedInteraction.Type.COMMENT).count();
+                double likeScore = recentLikes * 0.3;
+                double commentScore = recentComments * 0.6;
                 double hours = java.time.Duration.between(feed.getCreatedAt(), now).toMinutes() / 60.0;
                 double timeScore = Math.exp(-hours / 24.0);
                 double relationScore = relationshipWeights.getOrDefault(feed.getAuthorId(), 0.0);

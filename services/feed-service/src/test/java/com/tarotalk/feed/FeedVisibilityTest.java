@@ -26,7 +26,7 @@ public class FeedVisibilityTest {
         FeedEventPublisher eventPublisher = mock(FeedEventPublisher.class);
         RestTemplate restTemplate = mock(RestTemplate.class);
 
-        FeedService feedService = new FeedService(feedRepository, interactionRepository, eventPublisher, restTemplate, "http://user", "http://rel", "contact");
+        FeedService feedService = new FeedService(feedRepository, interactionRepository, eventPublisher, restTemplate, "http://user", "http://rel", "contact", 72, 200);
 
         UUID viewerId = UUID.randomUUID();
         UUID authorId = UUID.randomUUID();
@@ -53,7 +53,7 @@ public class FeedVisibilityTest {
         FeedEventPublisher eventPublisher = mock(FeedEventPublisher.class);
         RestTemplate restTemplate = mock(RestTemplate.class);
 
-        FeedService feedService = new FeedService(feedRepository, interactionRepository, eventPublisher, restTemplate, "http://user", "http://rel", "contact");
+        FeedService feedService = new FeedService(feedRepository, interactionRepository, eventPublisher, restTemplate, "http://user", "http://rel", "contact", 72, 200);
         UUID viewerId = UUID.randomUUID();
 
         Map<String, Object> apiResponse = new HashMap<>();
@@ -73,7 +73,7 @@ public class FeedVisibilityTest {
         FeedEventPublisher eventPublisher = mock(FeedEventPublisher.class);
         RestTemplate restTemplate = mock(RestTemplate.class);
 
-        FeedService feedService = new FeedService(feedRepository, interactionRepository, eventPublisher, restTemplate, "http://user", "http://rel", "relationship");
+        FeedService feedService = new FeedService(feedRepository, interactionRepository, eventPublisher, restTemplate, "http://user", "http://rel", "relationship", 72, 200);
         UUID viewerId = UUID.randomUUID();
         UUID authorId = UUID.randomUUID();
 

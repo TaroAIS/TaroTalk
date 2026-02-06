@@ -27,7 +27,7 @@ public class FeedStatsTest {
         FeedEventPublisher eventPublisher = mock(FeedEventPublisher.class);
         RestTemplate restTemplate = mock(RestTemplate.class);
 
-        FeedService feedService = new FeedService(feedRepository, interactionRepository, eventPublisher, restTemplate, "", "", "contact");
+        FeedService feedService = new FeedService(feedRepository, interactionRepository, eventPublisher, restTemplate, "", "", "contact", 72, 200);
 
         UUID feedId = UUID.randomUUID();
         UUID authorId = UUID.randomUUID();

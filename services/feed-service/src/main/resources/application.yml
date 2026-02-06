@@ -14,6 +14,12 @@ spring:
       ddl-auto: update
     open-in-view: false
 
+integrations:
+  user-service:
+    base-url: http://localhost:8082
+  notification-service:
+    base-url: http://localhost:8087
+
 management:
   endpoints:
     web:

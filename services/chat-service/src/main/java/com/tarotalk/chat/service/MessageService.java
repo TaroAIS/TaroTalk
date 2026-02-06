@@ -15,11 +15,13 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
 @Service
 public class MessageService {
+    private static final int CONTEXT_LIMIT = 20;
     private final ChatMessageRepository chatMessageRepository;
     private final ConversationRepository conversationRepository;
     private final ConversationParticipantRepository participantRepository;
@@ -62,9 +64,10 @@ public class MessageService {
                     .stream()
                     .map(com.tarotalk.chat.domain.ConversationParticipant::getUserId)
                     .collect(java.util.stream.Collectors.toList());
-            String replyText = orchestratorClient.generateReply(conversationId.toString(), request.getPersonaSummary(), safeContext(request.getContext()), participants, request.getSenderId());
+            List<MessageContext> context = buildContextIfMissing(conversationId, request.getSenderId(), request.getContext());
+            String replyText = orchestratorClient.generateReply(conversationId.toString(), request.getPersonaSummary(), context, participants, request.getSenderId());
             if (replyText == null || replyText.isEmpty()) {
-                replyText = aiClient.generateReply(request.getPersonaSummary(), conversationId.toString(), safeContext(request.getContext()));
+                replyText = aiClient.generateReply(request.getPersonaSummary(), conversationId.toString(), context);
             }
             if (replyText != null && !replyText.isEmpty()) {
                 ChatMessage aiMessage = new ChatMessage();
@@ -116,5 +119,28 @@ public class MessageService {
 
     private List<MessageContext> safeContext(List<MessageContext> context) {
         return context == null ? java.util.Collections.emptyList() : context;
+    }
+
+    private List<MessageContext> buildContextIfMissing(UUID conversationId, UUID senderId, List<MessageContext> context) {
+        if (context != null && !context.isEmpty()) {
+            return context;
+        }
+        Page<ChatMessage> history = chatMessageRepository.findByConversationIdOrderBySentAtDesc(
+                conversationId,
+                PageRequest.of(0, CONTEXT_LIMIT)
+        );
+        List<ChatMessage> messages = new ArrayList<>(history.getContent());
+        java.util.Collections.reverse(messages);
+        List<MessageContext> built = new ArrayList<>();
+        for (ChatMessage message : messages) {
+            if (message.getContent() == null) {
+                continue;
+            }
+            MessageContext ctx = new MessageContext();
+            ctx.setContent(message.getContent());
+            ctx.setRole(message.getSenderId() != null && message.getSenderId().equals(senderId) ? "user" : "assistant");
+            built.add(ctx);
+        }
+        return built;
     }
 }

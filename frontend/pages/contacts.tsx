@@ -1,6 +1,8 @@
 import { useState } from "react";
 import Layout from "../components/Layout";
-import { apiGet } from "../lib/api";
+import { apiGet, apiPost } from "../lib/api";
+import { useRouter } from "next/router";
+import { useSessionUser } from "../lib/useSessionUser";
 
 interface Contact {
   contactId: string;
@@ -10,9 +12,12 @@ interface Contact {
 }
 
 export default function Contacts() {
-  const [userId, setUserId] = useState("");
+  const router = useRouter();
+  const { user } = useSessionUser();
+  const [userId, setUserId] = useState(user?.userId || "");
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [status, setStatus] = useState<string | null>(null);
+  const [creating, setCreating] = useState(false);
 
   const loadContacts = async () => {
     try {
@@ -22,6 +27,29 @@ export default function Contacts() {
       setStatus(null);
     } catch (error) {
       setStatus("Failed to load contacts.");
+    }
+  };
+
+  const startChat = async (contactUserId: string) => {
+    if (!userId) {
+      setStatus("Please enter your user ID.");
+      return;
+    }
+    try {
+      setCreating(true);
+      const payload = {
+        type: "ONE_ON_ONE",
+        participantIds: [userId, contactUserId]
+      };
+      const res = await apiPost<any>("/api/conversations", payload);
+      const conversationId = res.data?.conversationId;
+      if (conversationId) {
+        router.push(`/chat/${conversationId}`);
+      }
+    } catch (error) {
+      setStatus("Failed to start chat.");
+    } finally {
+      setCreating(false);
     }
   };
 
@@ -44,6 +72,9 @@ export default function Contacts() {
           </button>
         </div>
         {status && <p style={{ color: "var(--color-muted)" }}>{status}</p>}
+        {!status && contacts.length === 0 && (
+          <p className="empty-state">No contacts yet. Try loading your AI agents.</p>
+        )}
         <div className="list">
           {contacts.map((contact) => (
             <div key={contact.contactId} className="list-item">
@@ -53,7 +84,16 @@ export default function Contacts() {
                   {contact.groupName || "Ungrouped"}
                 </div>
               </div>
-              <span className="tag">{contact.blocked ? "Blocked" : "Online"}</span>
+              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                <span className="tag">{contact.blocked ? "Blocked" : "Online"}</span>
+                <button
+                  className="btn-secondary"
+                  disabled={creating || contact.blocked}
+                  onClick={() => startChat(contact.contactUserId)}
+                >
+                  Start Chat
+                </button>
+              </div>
             </div>
           ))}
         </div>

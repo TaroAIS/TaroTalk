@@ -2,6 +2,7 @@ package com.tarotalk.feed;
 
 import com.tarotalk.feed.api.FeedResponse;
 import com.tarotalk.feed.domain.Feed;
+import com.tarotalk.feed.domain.FeedInteraction;
 import com.tarotalk.feed.repo.FeedInteractionRepository;
 import com.tarotalk.feed.repo.FeedRepository;
 import com.tarotalk.feed.service.FeedEventPublisher;

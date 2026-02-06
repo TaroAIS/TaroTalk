@@ -13,9 +13,11 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.UUID;
 import java.util.Map;
+import java.util.List;
 
 @Service
 public class ContactService {
@@ -54,6 +56,27 @@ public class ContactService {
         contact.setGroupName(request.getGroupName());
         contact.setBlocked(Boolean.TRUE.equals(request.getBlocked()));
         return contactRepository.save(contact);
+    }
+
+    public List<UUID> listContactUserIds(UUID userId) {
+        List<Contact> contacts = contactRepository.findByUserIdAndBlockedFalse(userId);
+        if (contacts.isEmpty()) {
+            return Collections.emptyList();
+        }
+        Map<UUID, UserProfile> profiles = new HashMap<>();
+        List<UUID> contactUserIds = contacts.stream()
+                .map(Contact::getContactUserId)
+                .collect(java.util.stream.Collectors.toList());
+        userProfileRepository.findAllById(contactUserIds)
+                .forEach(profile -> profiles.put(profile.getUserId(), profile));
+        List<UUID> filtered = new java.util.ArrayList<>();
+        for (Contact contact : contacts) {
+            UserProfile profile = profiles.get(contact.getContactUserId());
+            if (profile != null && profile.getUserType() != UserType.HUMAN) {
+                filtered.add(contact.getContactUserId());
+            }
+        }
+        return filtered;
     }
 
     private PageResponse<Contact> filterAiContacts(Page<Contact> result, int page, int size) {

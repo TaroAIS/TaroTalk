@@ -36,6 +36,11 @@ public class ContactController {
         return ApiResponse.ok(response);
     }
 
+    @GetMapping("/ids")
+    public ApiResponse<java.util.List<UUID>> listContactIds(@RequestParam UUID userId) {
+        return ApiResponse.ok(contactService.listContactUserIds(userId));
+    }
+
     @GetMapping("/search")
     public ApiResponse<PageResponse<ContactResponse>> search(@RequestParam UUID userId,
                                                              @RequestParam String keyword,

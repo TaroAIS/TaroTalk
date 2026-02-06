@@ -12,4 +12,5 @@ public interface ContactRepository extends JpaRepository<Contact, UUID> {
     Page<Contact> findByUserId(UUID userId, Pageable pageable);
     Page<Contact> findByUserIdAndGroupNameContainingIgnoreCase(UUID userId, String groupName, Pageable pageable);
     List<Contact> findByUserIdAndBlockedFalse(UUID userId);
+    List<Contact> findByContactUserIdAndBlockedFalse(UUID contactUserId);
 }

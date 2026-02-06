@@ -79,6 +79,27 @@ public class ContactService {
         return filtered;
     }
 
+    public List<UUID> listOwnerIdsByContactUserId(UUID contactUserId) {
+        List<Contact> contacts = contactRepository.findByContactUserIdAndBlockedFalse(contactUserId);
+        if (contacts.isEmpty()) {
+            return Collections.emptyList();
+        }
+        Map<UUID, UserProfile> profiles = new HashMap<>();
+        List<UUID> ownerIds = contacts.stream()
+                .map(Contact::getUserId)
+                .collect(java.util.stream.Collectors.toList());
+        userProfileRepository.findAllById(ownerIds)
+                .forEach(profile -> profiles.put(profile.getUserId(), profile));
+        List<UUID> filtered = new java.util.ArrayList<>();
+        for (Contact contact : contacts) {
+            UserProfile profile = profiles.get(contact.getUserId());
+            if (profile != null && profile.getUserType() != UserType.HUMAN) {
+                filtered.add(contact.getUserId());
+            }
+        }
+        return filtered;
+    }
+
     private PageResponse<Contact> filterAiContacts(Page<Contact> result, int page, int size) {
         Map<UUID, UserProfile> profiles = new HashMap<>();
         java.util.List<UUID> contactUserIds = result.getContent().stream()

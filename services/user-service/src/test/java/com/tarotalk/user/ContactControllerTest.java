@@ -66,4 +66,42 @@ public class ContactControllerTest {
                 .andExpect(jsonPath("$.data.length()").value(1))
                 .andExpect(jsonPath("$.data[0]").value(aiId.toString()));
     }
+
+    @Test
+    void listOwnersFiltersBlockedAndHuman() throws Exception {
+        UUID viewerId = UUID.randomUUID();
+        UUID aiOwnerId = UUID.randomUUID();
+        UUID humanOwnerId = UUID.randomUUID();
+        UUID blockedOwnerId = UUID.randomUUID();
+
+        UserProfile aiOwner = new UserProfile(aiOwnerId, "AI-Owner", null);
+        aiOwner.setUserType(UserType.AI);
+        userProfileRepository.save(aiOwner);
+
+        UserProfile humanOwner = new UserProfile(humanOwnerId, "Human-Owner", null);
+        humanOwner.setUserType(UserType.HUMAN);
+        userProfileRepository.save(humanOwner);
+
+        UserProfile blockedOwner = new UserProfile(blockedOwnerId, "Blocked-Owner", null);
+        blockedOwner.setUserType(UserType.AI);
+        userProfileRepository.save(blockedOwner);
+
+        Contact visible = new Contact(UUID.randomUUID(), aiOwnerId, viewerId);
+        visible.setBlocked(false);
+        contactRepository.save(visible);
+
+        Contact human = new Contact(UUID.randomUUID(), humanOwnerId, viewerId);
+        human.setBlocked(false);
+        contactRepository.save(human);
+
+        Contact blocked = new Contact(UUID.randomUUID(), blockedOwnerId, viewerId);
+        blocked.setBlocked(true);
+        contactRepository.save(blocked);
+
+        mockMvc.perform(get("/api/contacts/owners")
+                        .param("contactUserId", viewerId.toString()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.length()").value(1))
+                .andExpect(jsonPath("$.data[0]").value(aiOwnerId.toString()));
+    }
 }

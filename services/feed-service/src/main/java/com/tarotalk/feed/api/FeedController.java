@@ -26,10 +26,11 @@ public class FeedController {
     }
 
     @GetMapping
-    public ApiResponse<List<FeedResponse>> list(@RequestParam(required = false) java.util.UUID viewerId) {
+    public ApiResponse<List<FeedResponse>> list(@RequestParam(required = false) java.util.UUID viewerId,
+                                                @RequestParam(required = false) String visibility) {
         List<com.tarotalk.feed.domain.Feed> feeds = viewerId == null
                 ? feedService.list()
-                : feedService.listVisible(viewerId);
+                : feedService.listVisible(viewerId, visibility);
         return ApiResponse.ok(feedService.buildResponses(feeds, viewerId));
     }
 

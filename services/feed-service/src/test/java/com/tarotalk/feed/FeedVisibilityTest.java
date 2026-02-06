@@ -26,7 +26,7 @@ public class FeedVisibilityTest {
         FeedEventPublisher eventPublisher = mock(FeedEventPublisher.class);
         RestTemplate restTemplate = mock(RestTemplate.class);
 
-        FeedService feedService = new FeedService(feedRepository, interactionRepository, eventPublisher, restTemplate, "http://user");
+        FeedService feedService = new FeedService(feedRepository, interactionRepository, eventPublisher, restTemplate, "http://user", "http://rel", "contact");
 
         UUID viewerId = UUID.randomUUID();
         UUID authorId = UUID.randomUUID();
@@ -41,7 +41,7 @@ public class FeedVisibilityTest {
         when(feedRepository.findTop20ByAuthorIdInOrderByCreatedAtDesc(eq(List.of(authorId))))
                 .thenReturn(List.of(feed));
 
-        List<Feed> result = feedService.listVisible(viewerId);
+        List<Feed> result = feedService.listVisible(viewerId, null);
         assertEquals(1, result.size());
         assertEquals(feedId, result.get(0).getFeedId());
     }
@@ -53,7 +53,7 @@ public class FeedVisibilityTest {
         FeedEventPublisher eventPublisher = mock(FeedEventPublisher.class);
         RestTemplate restTemplate = mock(RestTemplate.class);
 
-        FeedService feedService = new FeedService(feedRepository, interactionRepository, eventPublisher, restTemplate, "http://user");
+        FeedService feedService = new FeedService(feedRepository, interactionRepository, eventPublisher, restTemplate, "http://user", "http://rel", "contact");
         UUID viewerId = UUID.randomUUID();
 
         Map<String, Object> apiResponse = new HashMap<>();
@@ -61,8 +61,33 @@ public class FeedVisibilityTest {
         when(restTemplate.getForObject(eq("http://user/api/contacts/owners?contactUserId=" + viewerId), eq(Map.class)))
                 .thenReturn(apiResponse);
 
-        List<Feed> result = feedService.listVisible(viewerId);
+        List<Feed> result = feedService.listVisible(viewerId, null);
         assertTrue(result.isEmpty());
         verify(feedRepository, never()).findTop20ByAuthorIdInOrderByCreatedAtDesc(any());
+    }
+
+    @Test
+    void listVisibleUsesRelationshipStrategy() {
+        FeedRepository feedRepository = mock(FeedRepository.class);
+        FeedInteractionRepository interactionRepository = mock(FeedInteractionRepository.class);
+        FeedEventPublisher eventPublisher = mock(FeedEventPublisher.class);
+        RestTemplate restTemplate = mock(RestTemplate.class);
+
+        FeedService feedService = new FeedService(feedRepository, interactionRepository, eventPublisher, restTemplate, "http://user", "http://rel", "relationship");
+        UUID viewerId = UUID.randomUUID();
+        UUID authorId = UUID.randomUUID();
+
+        Map<String, Object> relation = new HashMap<>();
+        relation.put("targetId", authorId.toString());
+        Map<String, Object> response = new HashMap<>();
+        response.put("data", List.of(relation));
+        when(restTemplate.getForObject(eq("http://rel/api/relationships/" + viewerId), eq(Map.class)))
+                .thenReturn(response);
+
+        when(feedRepository.findTop20ByAuthorIdInOrderByCreatedAtDesc(eq(List.of(authorId))))
+                .thenReturn(List.of(new Feed(UUID.randomUUID(), authorId, "From relation")));
+
+        List<Feed> result = feedService.listVisible(viewerId, null);
+        assertEquals(1, result.size());
     }
 }

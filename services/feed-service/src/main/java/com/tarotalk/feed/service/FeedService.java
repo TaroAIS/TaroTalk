@@ -19,6 +19,8 @@ import java.util.List;
 import java.util.UUID;
 import java.util.Map;
 import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.Set;
 
 @Service
 public class FeedService {
@@ -28,17 +30,23 @@ public class FeedService {
     private final FeedEventPublisher eventPublisher;
     private final RestTemplate restTemplate;
     private final String userServiceUrl;
+    private final String relationshipServiceUrl;
+    private final String visibilityStrategy;
 
     public FeedService(FeedRepository feedRepository,
                        FeedInteractionRepository interactionRepository,
                        FeedEventPublisher eventPublisher,
                        RestTemplate restTemplate,
-                       @Value("${integrations.user-service.base-url:}") String userServiceUrl) {
+                       @Value("${integrations.user-service.base-url:}") String userServiceUrl,
+                       @Value("${integrations.relationship-service.base-url:}") String relationshipServiceUrl,
+                       @Value("${feed.visibility.strategy:contact}") String visibilityStrategy) {
         this.feedRepository = feedRepository;
         this.interactionRepository = interactionRepository;
         this.eventPublisher = eventPublisher;
         this.restTemplate = restTemplate;
         this.userServiceUrl = userServiceUrl;
+        this.relationshipServiceUrl = relationshipServiceUrl;
+        this.visibilityStrategy = visibilityStrategy;
     }
 
     public Feed create(CreateFeedRequest request) {
@@ -85,12 +93,12 @@ public class FeedService {
         return responses;
     }
 
-    public List<Feed> listVisible(UUID viewerId) {
-        List<UUID> authorIds = fetchVisibleAuthorIds(viewerId);
+    public List<Feed> listVisible(UUID viewerId, String visibilityOverride) {
+        Set<UUID> authorIds = resolveVisibleAuthorIds(viewerId, visibilityOverride);
         if (authorIds.isEmpty()) {
             return Collections.emptyList();
         }
-        return feedRepository.findTop20ByAuthorIdInOrderByCreatedAtDesc(authorIds);
+        return feedRepository.findTop20ByAuthorIdInOrderByCreatedAtDesc(new ArrayList<>(authorIds));
     }
 
     public FeedInteraction comment(UUID feedId, CommentRequest request) {
@@ -111,7 +119,21 @@ public class FeedService {
         return saved;
     }
 
-    private List<UUID> fetchVisibleAuthorIds(UUID viewerId) {
+    private Set<UUID> resolveVisibleAuthorIds(UUID viewerId, String visibilityOverride) {
+        String strategy = visibilityOverride == null || visibilityOverride.trim().isEmpty()
+                ? visibilityStrategy
+                : visibilityOverride.trim().toLowerCase();
+        Set<UUID> ids = new HashSet<>();
+        if ("contact".equals(strategy) || "hybrid".equals(strategy)) {
+            ids.addAll(fetchContactAuthorIds(viewerId));
+        }
+        if ("relationship".equals(strategy) || "hybrid".equals(strategy)) {
+            ids.addAll(fetchRelationshipAuthorIds(viewerId));
+        }
+        return ids;
+    }
+
+    private List<UUID> fetchContactAuthorIds(UUID viewerId) {
         if (userServiceUrl == null || userServiceUrl.trim().isEmpty()) {
             return Collections.emptyList();
         }
@@ -135,6 +157,41 @@ public class FeedService {
             return ids;
         } catch (Exception ex) {
             log.warn("fetch visible authors failed: {}", ex.getMessage());
+            return Collections.emptyList();
+        }
+    }
+
+    private List<UUID> fetchRelationshipAuthorIds(UUID viewerId) {
+        if (relationshipServiceUrl == null || relationshipServiceUrl.trim().isEmpty()) {
+            return Collections.emptyList();
+        }
+        try {
+            Map response = restTemplate.getForObject(relationshipServiceUrl + "/api/relationships/" + viewerId, Map.class);
+            if (response == null) {
+                return Collections.emptyList();
+            }
+            Object data = response.get("data");
+            if (!(data instanceof List)) {
+                return Collections.emptyList();
+            }
+            List<UUID> ids = new ArrayList<>();
+            for (Object item : (List<?>) data) {
+                if (!(item instanceof Map)) {
+                    continue;
+                }
+                Object targetId = ((Map<?, ?>) item).get("targetId");
+                if (targetId == null) {
+                    continue;
+                }
+                try {
+                    ids.add(UUID.fromString(String.valueOf(targetId)));
+                } catch (IllegalArgumentException ex) {
+                    log.warn("invalid relationship target id: {}", targetId);
+                }
+            }
+            return ids;
+        } catch (Exception ex) {
+            log.warn("fetch relationship authors failed: {}", ex.getMessage());
             return Collections.emptyList();
         }
     }

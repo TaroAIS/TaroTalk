@@ -19,6 +19,12 @@ integrations:
     base-url: http://localhost:8082
   notification-service:
     base-url: http://localhost:8087
+  relationship-service:
+    base-url: http://localhost:8088
+
+feed:
+  visibility:
+    strategy: contact
 
 management:
   endpoints:

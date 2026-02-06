@@ -9,6 +9,8 @@ import com.tarotalk.feed.repo.FeedInteractionRepository;
 import com.tarotalk.feed.repo.FeedRepository;
 import com.tarotalk.common.exception.ApiException;
 import org.springframework.stereotype.Service;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.client.RestTemplate;
 import org.slf4j.Logger;
@@ -66,8 +68,15 @@ public class FeedService {
         return saved;
     }
 
-    public List<Feed> list() {
-        return feedRepository.findTop20ByOrderByCreatedAtDesc();
+    public List<Feed> list(Integer limit, String cursor) {
+        int size = resolveLimit(limit);
+        java.time.Instant cursorTime = parseCursor(cursor);
+        if (cursorTime != null) {
+            return feedRepository.findByCreatedAtBeforeOrderByCreatedAtDesc(cursorTime, PageRequest.of(0, size))
+                    .getContent();
+        }
+        return feedRepository.findAllByOrderByCreatedAtDesc(PageRequest.of(0, size, Sort.by("createdAt").descending()))
+                .getContent();
     }
 
     public List<com.tarotalk.feed.api.FeedResponse> buildResponses(List<Feed> feeds, UUID viewerId) {
@@ -131,12 +140,20 @@ public class FeedService {
         return responses;
     }
 
-    public List<Feed> listVisible(UUID viewerId, String visibilityOverride) {
+    public List<Feed> listVisible(UUID viewerId, String visibilityOverride, Integer limit, String cursor) {
         Set<UUID> authorIds = resolveVisibleAuthorIds(viewerId, visibilityOverride);
         if (authorIds.isEmpty()) {
             return Collections.emptyList();
         }
-        return feedRepository.findTop20ByAuthorIdInOrderByCreatedAtDesc(new ArrayList<>(authorIds));
+        int size = resolveLimit(limit);
+        java.time.Instant cursorTime = parseCursor(cursor);
+        List<UUID> ids = new ArrayList<>(authorIds);
+        if (cursorTime != null) {
+            return feedRepository.findByAuthorIdInAndCreatedAtBeforeOrderByCreatedAtDesc(ids, cursorTime, PageRequest.of(0, size))
+                    .getContent();
+        }
+        return feedRepository.findByAuthorIdInOrderByCreatedAtDesc(ids, PageRequest.of(0, size))
+                .getContent();
     }
 
     public FeedInteraction comment(UUID feedId, CommentRequest request) {
@@ -270,6 +287,24 @@ public class FeedService {
         } catch (Exception ex) {
             log.warn("fetch relationship weights failed: {}", ex.getMessage());
             return java.util.Collections.emptyMap();
+        }
+    }
+
+    private int resolveLimit(Integer limit) {
+        if (limit == null || limit <= 0) {
+            return 20;
+        }
+        return Math.min(limit, 100);
+    }
+
+    private java.time.Instant parseCursor(String cursor) {
+        if (cursor == null || cursor.trim().isEmpty()) {
+            return null;
+        }
+        try {
+            return java.time.Instant.parse(cursor);
+        } catch (Exception ex) {
+            throw new com.tarotalk.common.exception.ApiException("VALIDATION_ERROR", "invalid cursor");
         }
     }
 }

@@ -6,6 +6,7 @@ import com.tarotalk.feed.repo.FeedRepository;
 import com.tarotalk.feed.service.FeedEventPublisher;
 import com.tarotalk.feed.service.FeedService;
 import org.junit.jupiter.api.Test;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.web.client.RestTemplate;
 
 import java.util.HashMap;
@@ -38,10 +39,10 @@ public class FeedVisibilityTest {
                 .thenReturn(apiResponse);
 
         Feed feed = new Feed(feedId, authorId, "Visible feed");
-        when(feedRepository.findTop20ByAuthorIdInOrderByCreatedAtDesc(eq(List.of(authorId))))
-                .thenReturn(List.of(feed));
+        when(feedRepository.findByAuthorIdInOrderByCreatedAtDesc(eq(List.of(authorId)), any()))
+                .thenReturn(new PageImpl<>(List.of(feed)));
 
-        List<Feed> result = feedService.listVisible(viewerId, null);
+        List<Feed> result = feedService.listVisible(viewerId, null, null, null);
         assertEquals(1, result.size());
         assertEquals(feedId, result.get(0).getFeedId());
     }
@@ -61,9 +62,9 @@ public class FeedVisibilityTest {
         when(restTemplate.getForObject(eq("http://user/api/contacts/owners?contactUserId=" + viewerId), eq(Map.class)))
                 .thenReturn(apiResponse);
 
-        List<Feed> result = feedService.listVisible(viewerId, null);
+        List<Feed> result = feedService.listVisible(viewerId, null, null, null);
         assertTrue(result.isEmpty());
-        verify(feedRepository, never()).findTop20ByAuthorIdInOrderByCreatedAtDesc(any());
+        verify(feedRepository, never()).findByAuthorIdInOrderByCreatedAtDesc(any(), any());
     }
 
     @Test
@@ -84,10 +85,10 @@ public class FeedVisibilityTest {
         when(restTemplate.getForObject(eq("http://rel/api/relationships/" + viewerId), eq(Map.class)))
                 .thenReturn(response);
 
-        when(feedRepository.findTop20ByAuthorIdInOrderByCreatedAtDesc(eq(List.of(authorId))))
-                .thenReturn(List.of(new Feed(UUID.randomUUID(), authorId, "From relation")));
+        when(feedRepository.findByAuthorIdInOrderByCreatedAtDesc(eq(List.of(authorId)), any()))
+                .thenReturn(new PageImpl<>(List.of(new Feed(UUID.randomUUID(), authorId, "From relation"))));
 
-        List<Feed> result = feedService.listVisible(viewerId, null);
+        List<Feed> result = feedService.listVisible(viewerId, null, null, null);
         assertEquals(1, result.size());
     }
 }

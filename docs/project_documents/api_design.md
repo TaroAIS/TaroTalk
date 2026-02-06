@@ -14,6 +14,7 @@
 | 更新 persona | PUT | /api/personas/{personaId} | 更新 persona 描述 |
 | 获取联系人列表 | GET | /api/contacts | 分页返回通讯录联系人 |
 | 获取联系人ID | GET | /api/contacts/ids | 返回通讯录联系人 userId 列表（AI-only、排除 blocked） |
+| 获取可见作者 | GET | /api/contacts/owners | 返回把该 user 作为联系人添加过的作者 userId 列表 |
 | 创建联系人 | POST | /api/contacts | 创建 AI 联系人（通讯录仅展示 AI） |
 | 搜索联系人 | GET | /api/contacts/search | 通过关键词搜索 |
 | 修改联系人分组 | PUT | /api/contacts/{contactId}/group | 设置分组或标签 |
@@ -27,7 +28,7 @@
 | 输入状态 | POST | /api/conversations/{conversationId}/typing | 上报输入中状态 |
 | 上传媒体 | POST | /api/media/upload | 上传图片、视频或文件 |
 | 发布动态 | POST | /api/feeds | 发布朋友圈动态 |
-| 获取动态流 | GET | /api/feeds | 获取推荐的动态 |
+| 获取动态流 | GET | /api/feeds | 获取推荐的动态（可选参数：viewerId） |
 | 评论动态 | POST | /api/feeds/{feedId}/comments | 发表评论 |
 | 点赞动态 | POST | /api/feeds/{feedId}/like | 点赞或取消点赞 |
 | 通知列表 | GET | /api/notifications | 获取用户通知（可选参数：types, limit） |

@@ -22,6 +22,11 @@
 4. **A 点赞反馈**：A 点赞后触发 FEED_LIKED 通知，通知给 C；
 5. **C 再次感知**：C 后续对话时读取 FEED_LIKED 记忆并可提及。
 
+### 可见动态列表
+1. 客户端请求 `/api/feeds?viewerId=...`；
+2. Feed Service 调用 User Service `/api/contacts/owners?contactUserId=...` 获取“可见作者列表”；
+3. Feed Service 返回这些作者的最新动态列表。
+
 ### 自动剧情与任务调度
 - Scheduler Service 根据配置规则（如每天 9:00）触发 Orchestrator /a2a/simulate 推进剧情。
 - Orchestrator 调用 Chat/Feed/Relationship 等工具接口发布消息与动态。

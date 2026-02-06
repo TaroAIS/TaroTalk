@@ -1,7 +1,9 @@
+import uuid
+from typing import Optional
+
+import httpx
 from fastapi import FastAPI, APIRouter
 from fastapi.responses import JSONResponse
-import httpx
-import uuid
 from .config import settings
 from .models import (
     A2AChatRequest,
@@ -20,7 +22,7 @@ router = APIRouter(prefix="/a2a")
 engine = OrchestratorEngine()
 
 
-async def create_user(client: httpx.AsyncClient, nickname: str, user_type: str, owner_user_id: str | None):
+async def create_user(client: httpx.AsyncClient, nickname: str, user_type: str, owner_user_id: Optional[str]):
     payload = {
         "nickname": nickname,
         "userType": user_type,
@@ -31,7 +33,7 @@ async def create_user(client: httpx.AsyncClient, nickname: str, user_type: str, 
     return response.json()["data"]
 
 
-async def create_contact(client: httpx.AsyncClient, user_id: str, contact_user_id: str, group_name: str | None):
+async def create_contact(client: httpx.AsyncClient, user_id: str, contact_user_id: str, group_name: Optional[str]):
     payload = {
         "userId": user_id,
         "contactUserId": contact_user_id,

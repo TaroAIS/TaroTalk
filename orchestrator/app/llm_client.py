@@ -1,10 +1,10 @@
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from litellm import completion
 from .config import settings
 
 
-def run_completion(messages: List[Dict[str, str]], tools: List[Dict[str, Any]] | None = None,
-                   tool_choice: str | None = None) -> Dict[str, Any]:
+def run_completion(messages: List[Dict[str, str]], tools: Optional[List[Dict[str, Any]]] = None,
+                   tool_choice: Optional[str] = None) -> Dict[str, Any]:
     payload = {
         "model": settings.llm_model,
         "messages": messages,

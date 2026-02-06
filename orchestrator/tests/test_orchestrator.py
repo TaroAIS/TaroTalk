@@ -41,7 +41,8 @@ def test_run_chat_multi_step(monkeypatch):
     result = asyncio.get_event_loop().run_until_complete(
         engine.run_chat([{"role": "user", "content": "hi"}], "persona", ["u1", "u2"], "u1", rounds=2)
     )
-    assert result["reply"] == "final reply"
+    reply_lines = [line for line in result["reply"].splitlines() if line.strip()]
+    assert reply_lines == ["final reply", "final reply"]
     assert result["tool_calls"][0]["name"] == "get_contacts"
 
 

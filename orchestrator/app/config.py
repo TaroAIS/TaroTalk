@@ -1,5 +1,7 @@
-from pydantic import BaseModel
 import os
+from typing import Optional
+
+from pydantic import BaseModel
 
 
 class Settings(BaseModel):
@@ -13,8 +15,8 @@ class Settings(BaseModel):
     notification_service_url: str = os.getenv("NOTIFICATION_SERVICE_URL", "http://localhost:8087")
     llm_provider: str = os.getenv("LLM_PROVIDER", "openai")
     llm_model: str = os.getenv("LLM_MODEL", "gpt-4o-mini")
-    llm_api_base: str | None = os.getenv("LLM_API_BASE")
-    llm_api_key: str | None = os.getenv("LLM_API_KEY")
+    llm_api_base: Optional[str] = os.getenv("LLM_API_BASE")
+    llm_api_key: Optional[str] = os.getenv("LLM_API_KEY")
 
 
 settings = Settings()

@@ -1,4 +1,4 @@
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 import json
 import httpx
 
@@ -19,9 +19,9 @@ class OrchestratorEngine:
     async def run_chat(
         self,
         messages: List[Dict[str, str]],
-        persona_summary: str | None = None,
-        participants: List[str] | None = None,
-        sender_id: str | None = None,
+        persona_summary: Optional[str] = None,
+        participants: Optional[List[str]] = None,
+        sender_id: Optional[str] = None,
         rounds: int = 2,
     ) -> Dict[str, Any]:
         system_prompt = self._build_system_prompt(persona_summary, participants)
@@ -74,7 +74,7 @@ class OrchestratorEngine:
 
         return {"reply": "\n".join(replies), "tool_calls": tool_calls_collected}
 
-    def _build_system_prompt(self, persona_summary: str | None, participants: List[str] | None) -> str:
+    def _build_system_prompt(self, persona_summary: Optional[str], participants: Optional[List[str]]) -> str:
         base = "You are a multi-agent chat orchestrator."
         if persona_summary:
             base += f" Persona summary: {persona_summary}."
@@ -83,7 +83,7 @@ class OrchestratorEngine:
         base += " Use tools when needed and answer concisely."
         return base
 
-    def _build_role_map(self, sender_id: str | None, participants: List[str]) -> Dict[str, str]:
+    def _build_role_map(self, sender_id: Optional[str], participants: List[str]) -> Dict[str, str]:
         role_map: Dict[str, str] = {}
         if sender_id:
             role_map["self-agent"] = sender_id

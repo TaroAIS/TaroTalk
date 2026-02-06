@@ -26,8 +26,9 @@ public class FeedController {
     }
 
     @GetMapping
-    public ApiResponse<List<FeedResponse>> list() {
-        List<FeedResponse> feeds = feedService.list().stream()
+    public ApiResponse<List<FeedResponse>> list(@RequestParam(required = false) java.util.UUID viewerId) {
+        List<FeedResponse> feeds = (viewerId == null ? feedService.list() : feedService.listVisible(viewerId))
+                .stream()
                 .map(FeedResponse::from)
                 .collect(Collectors.toList());
         return ApiResponse.ok(feeds);

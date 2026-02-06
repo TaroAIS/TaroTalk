@@ -8,4 +8,5 @@ import java.util.UUID;
 
 public interface FeedRepository extends JpaRepository<Feed, UUID> {
     List<Feed> findTop20ByOrderByCreatedAtDesc();
+    List<Feed> findTop20ByAuthorIdInOrderByCreatedAtDesc(List<UUID> authorIds);
 }

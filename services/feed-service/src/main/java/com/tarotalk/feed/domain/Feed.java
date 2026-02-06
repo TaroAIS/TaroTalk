@@ -1,5 +1,7 @@
 package com.tarotalk.feed.domain;
 
+import org.hibernate.annotations.Type;
+
 import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.EnumType;
@@ -20,10 +22,12 @@ public class Feed {
     }
 
     @Id
+    @Type(type = "uuid-char")
     @Column(name = "feed_id", nullable = false, updatable = false)
     private UUID feedId;
 
     @Column(name = "author_id", nullable = false)
+    @Type(type = "uuid-char")
     private UUID authorId;
 
     @Lob

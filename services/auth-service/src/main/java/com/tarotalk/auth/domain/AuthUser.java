@@ -1,5 +1,7 @@
 package com.tarotalk.auth.domain;
 
+import org.hibernate.annotations.Type;
+
 import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.Id;
@@ -11,6 +13,7 @@ import java.util.UUID;
 @Table(name = "auth_users")
 public class AuthUser {
     @Id
+    @Type(type = "uuid-char")
     @Column(name = "user_id", nullable = false, updatable = false)
     private UUID userId;
 

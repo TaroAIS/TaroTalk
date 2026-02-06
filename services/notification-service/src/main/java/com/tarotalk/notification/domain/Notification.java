@@ -30,10 +30,12 @@ public class Notification {
     }
 
     @Id
+    @org.hibernate.annotations.Type(type = "uuid-char")
     @Column(name = "notification_id", nullable = false, updatable = false)
     private UUID notificationId;
 
     @Column(name = "user_id", nullable = false)
+    @org.hibernate.annotations.Type(type = "uuid-char")
     private UUID userId;
 
     @Enumerated(EnumType.STRING)

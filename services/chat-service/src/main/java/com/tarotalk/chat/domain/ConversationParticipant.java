@@ -1,5 +1,7 @@
 package com.tarotalk.chat.domain;
 
+import org.hibernate.annotations.Type;
+
 import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.EnumType;
@@ -19,13 +21,16 @@ public class ConversationParticipant {
     }
 
     @Id
+    @Type(type = "uuid-char")
     @Column(name = "participant_id", nullable = false, updatable = false)
     private UUID participantId;
 
     @Column(name = "conversation_id", nullable = false)
+    @Type(type = "uuid-char")
     private UUID conversationId;
 
     @Column(name = "user_id", nullable = false)
+    @Type(type = "uuid-char")
     private UUID userId;
 
     @Enumerated(EnumType.STRING)

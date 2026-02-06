@@ -1,5 +1,7 @@
 package com.tarotalk.user.domain;
 
+import org.hibernate.annotations.Type;
+
 import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.Id;
@@ -11,13 +13,16 @@ import java.util.UUID;
 @Table(name = "contacts")
 public class Contact {
     @Id
+    @Type(type = "uuid-char")
     @Column(name = "contact_id", nullable = false, updatable = false)
     private UUID contactId;
 
     @Column(name = "user_id", nullable = false)
+    @Type(type = "uuid-char")
     private UUID userId;
 
     @Column(name = "contact_user_id", nullable = false)
+    @Type(type = "uuid-char")
     private UUID contactUserId;
 
     @Column(name = "group_name")

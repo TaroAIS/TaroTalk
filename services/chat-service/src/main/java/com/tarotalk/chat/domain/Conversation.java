@@ -18,6 +18,7 @@ public class Conversation {
     }
 
     @Id
+    @org.hibernate.annotations.Type(type = "uuid-char")
     @Column(name = "conversation_id", nullable = false, updatable = false)
     private UUID conversationId;
 

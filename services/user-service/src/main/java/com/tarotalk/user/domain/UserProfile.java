@@ -1,5 +1,7 @@
 package com.tarotalk.user.domain;
 
+import org.hibernate.annotations.Type;
+
 import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.EnumType;
@@ -13,6 +15,7 @@ import java.util.UUID;
 @Table(name = "users")
 public class UserProfile {
     @Id
+    @Type(type = "uuid-char")
     @Column(name = "user_id", nullable = false, updatable = false)
     private UUID userId;
 
@@ -33,6 +36,7 @@ public class UserProfile {
     private UserType userType;
 
     @Column(name = "owner_user_id")
+    @Type(type = "uuid-char")
     private UUID ownerUserId;
 
     @Column(nullable = false)

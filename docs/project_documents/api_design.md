@@ -13,6 +13,7 @@
 | 创建 persona | POST | /api/personas | 根据自述生成 persona |
 | 更新 persona | PUT | /api/personas/{personaId} | 更新 persona 描述 |
 | 获取联系人列表 | GET | /api/contacts | 分页返回通讯录联系人 |
+| 获取联系人ID | GET | /api/contacts/ids | 返回通讯录联系人 userId 列表（AI-only、排除 blocked） |
 | 创建联系人 | POST | /api/contacts | 创建 AI 联系人（通讯录仅展示 AI） |
 | 搜索联系人 | GET | /api/contacts/search | 通过关键词搜索 |
 | 修改联系人分组 | PUT | /api/contacts/{contactId}/group | 设置分组或标签 |
@@ -29,7 +30,7 @@
 | 获取动态流 | GET | /api/feeds | 获取推荐的动态 |
 | 评论动态 | POST | /api/feeds/{feedId}/comments | 发表评论 |
 | 点赞动态 | POST | /api/feeds/{feedId}/like | 点赞或取消点赞 |
-| 通知列表 | GET | /api/notifications | 获取用户通知 |
+| 通知列表 | GET | /api/notifications | 获取用户通知（可选参数：types, limit） |
 | AI 回复 | POST | /api/ai/reply | 提交对话上下文，生成 AI 回复 |
 | AI 动态 | POST | /api/ai/feed | 请求 AI 生成朋友圈动态 |
 | A2A 对话 | POST | /api/a2a/chat | 多代理编排对话 |
@@ -62,6 +63,12 @@
 - **AI 回复**：
   - 请求体含 persona 描述、上下文消息和记忆检索结果；
   - AI Service 返回生成的文本以及所用的参考记忆 id。
+
+- **通知列表过滤**：
+  - 请求参数示例：
+    ```
+    /api/notifications?userId=...&types=FEED_CREATED,FEED_LIKED&limit=10
+    ```
 
 ## GraphQL Schema（可选）
 为客户端提供更灵活的查询，可使用 GraphQL 聚合多服务数据。示例 schema 片段：

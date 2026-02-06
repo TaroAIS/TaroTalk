@@ -4,14 +4,14 @@
 - 实现「朋友圈事件 → 可见性判定 → 通知传播 → 记忆写入 → 对话提及 → 互动反馈」闭环
 
 ## P0（必做）
-- [ ] Feed 发布生成事件（feed_created）
-- [ ] Feed 点赞/评论生成事件（feed_liked / feed_commented）
-- [ ] 可见性判定：通讯录可见（Contact Service）
-- [ ] 通知驱动：Feed 事件触发 Notification Service
-- [ ] 事件写入 AI 记忆库（feed_created / feed_liked / feed_commented）
+- [x] Feed 发布生成事件（feed_created）
+- [x] Feed 点赞/评论生成事件（feed_liked / feed_commented）
+- [x] 可见性判定：通讯录可见（Contact Service）
+- [x] 通知驱动：Feed 事件触发 Notification Service
+- [x] 事件写入 AI 记忆库（feed_created / feed_liked / feed_commented）
 
 ## P1（重要）
-- [ ] Orchestrator 对话前检索事件记忆并注入上下文
+- [x] Orchestrator 对话前检索事件记忆并注入上下文
 - [ ] B 与 A 对话中提及 C 的朋友圈事件
 - [ ] C 能感知 A 点赞并在与 B 对话中提及
 - [ ] 关系图谱与 persona 关联（事件与关系/画像绑定）

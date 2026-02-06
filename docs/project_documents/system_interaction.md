@@ -15,6 +15,13 @@
 3. LLM 返回多角色回复文本；Orchestrator 在需要时调用工具接口（send_message/post_feed/update_relationship 等）；
 4. Chat Service 将回复写入消息存储，并通过 WebSocket 推送给客户端。
 
+### 朋友圈事件闭环（通知驱动 + 记忆注入）
+1. **C 发布动态**：Feed Service 写入 Feed，并基于“作者通讯录可见”获取联系人列表；
+2. **通知传播**：对每个可见联系人创建 FEED_CREATED 通知（作为事件记忆）；
+3. **B 对话提及**：Orchestrator 拉取 B 的 FEED_* 通知并注入上下文，促使在与 A 对话中提及；
+4. **A 点赞反馈**：A 点赞后触发 FEED_LIKED 通知，通知给 C；
+5. **C 再次感知**：C 后续对话时读取 FEED_LIKED 记忆并可提及。
+
 ### 自动剧情与任务调度
 - Scheduler Service 根据配置规则（如每天 9:00）触发 Orchestrator /a2a/simulate 推进剧情。
 - Orchestrator 调用 Chat/Feed/Relationship 等工具接口发布消息与动态。

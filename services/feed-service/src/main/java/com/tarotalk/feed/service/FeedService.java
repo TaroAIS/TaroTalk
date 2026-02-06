@@ -56,6 +56,35 @@ public class FeedService {
         return feedRepository.findTop20ByOrderByCreatedAtDesc();
     }
 
+    public List<com.tarotalk.feed.api.FeedResponse> buildResponses(List<Feed> feeds, UUID viewerId) {
+        if (feeds == null || feeds.isEmpty()) {
+            return java.util.Collections.emptyList();
+        }
+        java.util.List<UUID> feedIds = feeds.stream().map(Feed::getFeedId).collect(java.util.stream.Collectors.toList());
+        java.util.List<com.tarotalk.feed.domain.FeedInteraction> interactions = interactionRepository.findByFeedIdIn(feedIds);
+        java.util.Map<UUID, long[]> stats = new java.util.HashMap<>();
+        java.util.Set<UUID> likedByViewer = new java.util.HashSet<>();
+        for (com.tarotalk.feed.domain.FeedInteraction interaction : interactions) {
+            long[] counters = stats.computeIfAbsent(interaction.getFeedId(), key -> new long[]{0L, 0L});
+            if (interaction.getType() == com.tarotalk.feed.domain.FeedInteraction.Type.LIKE) {
+                counters[0] += 1;
+                if (viewerId != null && viewerId.equals(interaction.getUserId())) {
+                    likedByViewer.add(interaction.getFeedId());
+                }
+            }
+            if (interaction.getType() == com.tarotalk.feed.domain.FeedInteraction.Type.COMMENT) {
+                counters[1] += 1;
+            }
+        }
+        java.util.List<com.tarotalk.feed.api.FeedResponse> responses = new java.util.ArrayList<>();
+        for (Feed feed : feeds) {
+            long[] counters = stats.getOrDefault(feed.getFeedId(), new long[]{0L, 0L});
+            boolean liked = viewerId != null && likedByViewer.contains(feed.getFeedId());
+            responses.add(com.tarotalk.feed.api.FeedResponse.from(feed, counters[0], counters[1], liked));
+        }
+        return responses;
+    }
+
     public List<Feed> listVisible(UUID viewerId) {
         List<UUID> authorIds = fetchVisibleAuthorIds(viewerId);
         if (authorIds.isEmpty()) {

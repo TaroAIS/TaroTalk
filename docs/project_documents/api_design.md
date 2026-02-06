@@ -28,7 +28,7 @@
 | 输入状态 | POST | /api/conversations/{conversationId}/typing | 上报输入中状态 |
 | 上传媒体 | POST | /api/media/upload | 上传图片、视频或文件 |
 | 发布动态 | POST | /api/feeds | 发布朋友圈动态 |
-| 获取动态流 | GET | /api/feeds | 获取推荐的动态（可选参数：viewerId） |
+| 获取动态流 | GET | /api/feeds | 获取推荐的动态（可选参数：viewerId, visibility, limit, cursor） |
 | 评论动态 | POST | /api/feeds/{feedId}/comments | 发表评论 |
 | 点赞动态 | POST | /api/feeds/{feedId}/like | 点赞或取消点赞 |
 | 通知列表 | GET | /api/notifications | 获取用户通知（可选参数：types, limit） |
@@ -70,6 +70,9 @@
     ```
     /api/notifications?userId=...&types=FEED_CREATED,FEED_LIKED&limit=10
     ```
+
+- **动态列表响应补充字段**：
+  - `likeCount` / `commentCount` / `likedByViewer`
 
 ## GraphQL Schema（可选）
 为客户端提供更灵活的查询，可使用 GraphQL 聚合多服务数据。示例 schema 片段：

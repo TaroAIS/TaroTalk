@@ -8,6 +8,9 @@ interface FeedItem {
   authorId: string;
   content: string;
   createdAt: string;
+  likeCount?: number;
+  commentCount?: number;
+  likedByViewer?: boolean;
 }
 
 export default function Feed() {
@@ -16,6 +19,8 @@ export default function Feed() {
   const [authorId, setAuthorId] = useState("");
   const [viewerId, setViewerId] = useState(user?.userId || "");
   const [content, setContent] = useState("");
+  const [visibility, setVisibility] = useState("");
+  const [limit, setLimit] = useState("20");
   const [status, setStatus] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -23,7 +28,17 @@ export default function Feed() {
     try {
       setLoading(true);
       setStatus(null);
-      const path = viewerId ? `/api/feeds?viewerId=${viewerId}` : "/api/feeds";
+      const params = new URLSearchParams();
+      if (viewerId) {
+        params.set("viewerId", viewerId);
+      }
+      if (visibility) {
+        params.set("visibility", visibility);
+      }
+      if (limit) {
+        params.set("limit", limit);
+      }
+      const path = `/api/feeds${params.toString() ? `?${params.toString()}` : ""}`;
       const res = await apiGet<any>(path);
       setFeeds(res.data || []);
       if (!res.data || res.data.length === 0) {
@@ -78,6 +93,24 @@ export default function Feed() {
               value={viewerId}
               onChange={(e) => setViewerId(e.target.value)}
             />
+            <div className="grid grid-2">
+              <select
+                className="input"
+                value={visibility}
+                onChange={(e) => setVisibility(e.target.value)}
+              >
+                <option value="">Default visibility</option>
+                <option value="contact">Contact</option>
+                <option value="relationship">Relationship</option>
+                <option value="hybrid">Hybrid</option>
+              </select>
+              <input
+                className="input"
+                placeholder="Limit"
+                value={limit}
+                onChange={(e) => setLimit(e.target.value)}
+              />
+            </div>
             <textarea
               className="input"
               placeholder="What's on your mind?"
@@ -108,10 +141,17 @@ export default function Feed() {
                 <div>
                   <div style={{ fontWeight: 600 }}>{feed.authorId}</div>
                   <div style={{ color: "var(--color-muted)", fontSize: 12 }}>{feed.createdAt}</div>
+                  <div style={{ color: "var(--color-muted)", fontSize: 12 }}>
+                    👍 {feed.likeCount ?? 0} · 💬 {feed.commentCount ?? 0}
+                  </div>
                 </div>
                 <div style={{ maxWidth: 240 }}>{feed.content}</div>
-                <button className="btn-secondary" onClick={() => likeFeed(feed.feedId)}>
-                  Like
+                <button
+                  className="btn-secondary"
+                  disabled={Boolean(feed.likedByViewer)}
+                  onClick={() => likeFeed(feed.feedId)}
+                >
+                  {feed.likedByViewer ? "Liked" : "Like"}
                 </button>
               </div>
             ))}

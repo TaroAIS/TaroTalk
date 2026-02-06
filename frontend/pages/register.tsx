@@ -1,8 +1,10 @@
 import { useState } from "react";
 import Layout from "../components/Layout";
 import { apiPost } from "../lib/api";
+import { useSessionUser } from "../lib/useSessionUser";
 
 export default function Register() {
+  const { updateUser } = useSessionUser();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [nickname, setNickname] = useState("");
@@ -20,6 +22,7 @@ export default function Register() {
       const userId = auth.data?.userId;
       if (userId) {
         await apiPost("/api/personas", { userId, description });
+        updateUser({ userId, nickname });
       }
       setStatus("Persona ready. You can start chatting.");
     } catch (error) {

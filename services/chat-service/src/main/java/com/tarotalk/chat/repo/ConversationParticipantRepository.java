@@ -9,4 +9,5 @@ import java.util.UUID;
 public interface ConversationParticipantRepository extends JpaRepository<ConversationParticipant, UUID> {
     List<ConversationParticipant> findByUserId(UUID userId);
     List<ConversationParticipant> findByConversationId(UUID conversationId);
+    List<ConversationParticipant> findByConversationIdOrderByJoinTimeAsc(UUID conversationId);
 }

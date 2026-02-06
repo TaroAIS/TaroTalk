@@ -60,7 +60,7 @@ public class MessageService {
         webSocketPublisher.publish(conversationId.toString(), saved);
 
         if (request.isGenerateAiReply()) {
-            java.util.List<java.util.UUID> participants = participantRepository.findByConversationId(conversationId)
+            java.util.List<java.util.UUID> participants = participantRepository.findByConversationIdOrderByJoinTimeAsc(conversationId)
                     .stream()
                     .map(com.tarotalk.chat.domain.ConversationParticipant::getUserId)
                     .collect(java.util.stream.Collectors.toList());

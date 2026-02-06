@@ -84,8 +84,28 @@ public class FeedService {
                 counters[1] += 1;
             }
         }
+        java.util.List<Feed> ordered = feeds;
+        if (viewerId != null) {
+            java.util.Map<UUID, Double> relationshipWeights = fetchRelationshipWeights(viewerId);
+            java.util.Map<UUID, Double> scores = new java.util.HashMap<>();
+            java.time.Instant now = java.time.Instant.now();
+            for (Feed feed : feeds) {
+                long[] counters = stats.getOrDefault(feed.getFeedId(), new long[]{0L, 0L});
+                double likeScore = counters[0] * 0.3;
+                double commentScore = counters[1] * 0.6;
+                double hours = java.time.Duration.between(feed.getCreatedAt(), now).toMinutes() / 60.0;
+                double timeScore = Math.exp(-hours / 24.0);
+                double relationScore = relationshipWeights.getOrDefault(feed.getAuthorId(), 0.0);
+                scores.put(feed.getFeedId(), timeScore + likeScore + commentScore + relationScore);
+            }
+            ordered = new java.util.ArrayList<>(feeds);
+            ordered.sort((a, b) -> Double.compare(
+                    scores.getOrDefault(b.getFeedId(), 0.0),
+                    scores.getOrDefault(a.getFeedId(), 0.0)
+            ));
+        }
         java.util.List<com.tarotalk.feed.api.FeedResponse> responses = new java.util.ArrayList<>();
-        for (Feed feed : feeds) {
+        for (Feed feed : ordered) {
             long[] counters = stats.getOrDefault(feed.getFeedId(), new long[]{0L, 0L});
             boolean liked = viewerId != null && likedByViewer.contains(feed.getFeedId());
             responses.add(com.tarotalk.feed.api.FeedResponse.from(feed, counters[0], counters[1], liked));
@@ -193,6 +213,45 @@ public class FeedService {
         } catch (Exception ex) {
             log.warn("fetch relationship authors failed: {}", ex.getMessage());
             return Collections.emptyList();
+        }
+    }
+
+    private Map<UUID, Double> fetchRelationshipWeights(UUID viewerId) {
+        if (relationshipServiceUrl == null || relationshipServiceUrl.trim().isEmpty()) {
+            return java.util.Collections.emptyMap();
+        }
+        try {
+            Map response = restTemplate.getForObject(relationshipServiceUrl + "/api/relationships/" + viewerId, Map.class);
+            if (response == null) {
+                return java.util.Collections.emptyMap();
+            }
+            Object data = response.get("data");
+            if (!(data instanceof List)) {
+                return java.util.Collections.emptyMap();
+            }
+            Map<UUID, Double> weights = new java.util.HashMap<>();
+            for (Object item : (List<?>) data) {
+                if (!(item instanceof Map)) {
+                    continue;
+                }
+                Map<?, ?> row = (Map<?, ?>) item;
+                Object targetId = row.get("targetId");
+                Object intimacyScore = row.get("intimacyScore");
+                if (targetId == null) {
+                    continue;
+                }
+                try {
+                    UUID id = UUID.fromString(String.valueOf(targetId));
+                    double score = intimacyScore instanceof Number ? ((Number) intimacyScore).doubleValue() : 0.0;
+                    weights.put(id, score);
+                } catch (IllegalArgumentException ex) {
+                    log.warn("invalid relationship target id: {}", targetId);
+                }
+            }
+            return weights;
+        } catch (Exception ex) {
+            log.warn("fetch relationship weights failed: {}", ex.getMessage());
+            return java.util.Collections.emptyMap();
         }
     }
 }

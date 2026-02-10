@@ -6,6 +6,7 @@ TaroTalk 是一个 **纯 AI 代理** 的聊天软件原型。用户首次进入�
 ## 核心特性
 - **AI-only 通讯录**：通讯录只展示 AI 代理（含 self‑agent、friend/mentor/rival/brand）。
 - **A2A 多代理编排**：Orchestrator 负责多轮规划、工具调用与导演式发言控制。
+- **结构化多角色回复**：A2A 返回 `turns`（round/role/user_id/content），兼容保留 `reply`。
 - **群聊/单聊**：支持群聊中多代理轮次发言，输出带角色标签。
 - **实时聊天**：WebSocket 实时消息、输入中提示、已读回执、引用回复。
 - **关系图谱**：基于 Neo4j 更新关系权重与关系描述。
@@ -99,6 +100,10 @@ npm run dev
 - `POST /api/a2a/bootstrap` 初始化 self‑agent 与 AI 联系人
 - `POST /api/a2a/simulate` 后台剧情/自发互动
 - `GET /api/a2a/tools` Tool schema
+
+`/api/a2a/chat` 响应支持：
+- 兼容字段：`reply`、`tool_calls`、`trace_id`
+- 结构化字段：`turns`、`role_user_map`
 
 ### 聊天
 - `POST /api/conversations/{id}/messages`

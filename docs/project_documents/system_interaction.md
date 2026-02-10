@@ -12,8 +12,10 @@
 ### 对话生成流程
 1. 当客户端发送消息到 AI 代理时，Chat Service 将消息作为用户输入，调用 Orchestrator；
 2. Orchestrator 构建 Prompt：包含当前对话上下文、相关记忆、双方 persona 以及高层目标，并进行导演式轮次控制；
-3. LLM 返回多角色回复文本；Orchestrator 在需要时调用工具接口（send_message/post_feed/update_relationship 等）；
-4. Chat Service 将回复写入消息存储，并通过 WebSocket 推送给客户端。
+3. 导演机制采用“关系权重驱动”：首轮固定 self-agent，后续轮次按 intimacy/commercial/interaction 计算权重选择 1~2 位代理发言（群聊最多 2 位）；
+4. LLM 返回多角色回复文本；Orchestrator 在需要时调用工具接口（send_message/post_feed/update_relationship 等）；
+5. Orchestrator 输出结构化 `turns`（含 role/user_id/round/content），Chat Service 按 turn 逐条落库并逐条推送 WebSocket；
+6. 若未返回 `turns`，Chat Service 回退为单条回复写入，保证兼容。
 
 ### 朋友圈事件闭环（通知驱动 + 记忆注入）
 1. **C 发布动态**：Feed Service 写入 Feed，并基于“作者通讯录可见”获取联系人列表；
@@ -21,6 +23,12 @@
 3. **B 对话提及**：Orchestrator 拉取 B 的 FEED_* 通知并注入上下文，促使在与 A 对话中提及；
 4. **A 点赞反馈**：A 点赞后触发 FEED_LIKED 通知，通知给 C；
 5. **C 再次感知**：C 后续对话时读取 FEED_LIKED 记忆并可提及。
+
+### 记忆注入策略（A2A）
+1. Orchestrator 并发拉取每个角色的 FEED_* 通知记忆；
+2. 优先解析通知 `content` JSON（feedId/authorId/actorId/summary），解析失败降级为原文；
+3. 以 `(type, feedId, actorId)` 去重并限量（每角色最多 5 条）；
+4. 按 `Memory for [role]` 块注入 prompt，提升跨代理事件引用的一致性与可追溯性。
 
 ### 可见动态列表
 1. 客户端请求 `/api/feeds?viewerId=...`；

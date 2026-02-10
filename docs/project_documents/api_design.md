@@ -74,6 +74,27 @@
 - **动态列表响应补充字段**：
   - `likeCount` / `commentCount` / `likedByViewer`
 
+- **A2A 对话响应（增强，向后兼容）**：
+  - 保留字段：`reply` / `tool_calls` / `trace_id`
+  - 新增字段：
+    - `turns`: 多角色结构化回复（`round`, `role`, `user_id`, `content`）
+    - `role_user_map`: 角色到 userId 的映射
+  - 响应示例（简要）：
+    ```json
+    {
+      "reply": "[self-agent] 我先看看\n[friend] 我来补充",
+      "turns": [
+        {"round": 1, "role": "self-agent", "user_id": "u-self", "content": "我先看看"},
+        {"round": 2, "role": "friend", "user_id": "u-friend", "content": "我来补充"}
+      ],
+      "role_user_map": {
+        "self-agent": "u-self",
+        "friend": "u-friend"
+      },
+      "trace_id": "..."
+    }
+    ```
+
 ## GraphQL Schema（可选）
 为客户端提供更灵活的查询，可使用 GraphQL 聚合多服务数据。示例 schema 片段：
 

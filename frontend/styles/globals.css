@@ -10,6 +10,18 @@
   --radius-md: 12px;
   --radius-sm: 8px;
   --font-sans: "Roboto", "Noto Sans SC", "Helvetica Neue", Arial, sans-serif;
+  --role-self-bg: #d9ebff;
+  --role-self-text: #0f5ec7;
+  --role-friend-bg: #e4faef;
+  --role-friend-text: #0f8b50;
+  --role-mentor-bg: #f4ecff;
+  --role-mentor-text: #6232a8;
+  --role-rival-bg: #ffe9ec;
+  --role-rival-text: #b21c48;
+  --role-advertiser-bg: #fff4db;
+  --role-advertiser-text: #a16207;
+  --role-default-bg: #edf2f8;
+  --role-default-text: #4c5f7a;
 }
 
 * {
@@ -162,6 +174,7 @@ a {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 12px;
   padding: 12px 16px;
   border-radius: var(--radius-md);
   background: #f8faff;
@@ -186,10 +199,111 @@ a {
   font-size: 13px;
 }
 
+.chat-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-height: 640px;
+  overflow-y: auto;
+  padding-right: 6px;
+}
+
+.chat-row {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+
+.chat-row.self {
+  align-items: flex-end;
+}
+
+.chat-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.chat-time {
+  font-size: 12px;
+  color: var(--color-muted);
+}
+
+.role-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.role-self-agent {
+  background: var(--role-self-bg);
+  color: var(--role-self-text);
+}
+
+.role-friend {
+  background: var(--role-friend-bg);
+  color: var(--role-friend-text);
+}
+
+.role-mentor {
+  background: var(--role-mentor-bg);
+  color: var(--role-mentor-text);
+}
+
+.role-rival {
+  background: var(--role-rival-bg);
+  color: var(--role-rival-text);
+}
+
+.role-advertiser {
+  background: var(--role-advertiser-bg);
+  color: var(--role-advertiser-text);
+}
+
+.role-default {
+  background: var(--role-default-bg);
+  color: var(--role-default-text);
+}
+
+.chat-bubble {
+  padding: 10px 14px;
+  border-radius: 14px;
+  max-width: min(520px, 80vw);
+  line-height: 1.45;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.chat-bubble.self {
+  background: linear-gradient(135deg, #1e87ff, #0078ff);
+  color: #ffffff;
+  border-bottom-right-radius: 6px;
+}
+
+.chat-bubble.other {
+  background: #edf4ff;
+  color: var(--color-text);
+  border: 1px solid #d7e5fb;
+  border-bottom-left-radius: 6px;
+}
+
+.chat-sub {
+  color: var(--color-muted);
+  font-size: 12px;
+}
+
 @media (max-width: 768px) {
   .header {
     flex-direction: column;
     align-items: flex-start;
     gap: 16px;
+  }
+
+  .chat-bubble {
+    max-width: 100%;
   }
 }

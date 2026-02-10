@@ -20,9 +20,18 @@ class ToolCall(BaseModel):
     arguments: Dict[str, Any]
 
 
+class Turn(BaseModel):
+    round: int
+    role: str
+    user_id: str
+    content: str
+
+
 class A2AChatResponse(BaseModel):
     reply: str
     tool_calls: List[ToolCall] = Field(default_factory=list)
+    turns: List[Turn] = Field(default_factory=list)
+    role_user_map: Dict[str, str] = Field(default_factory=dict)
     trace_id: Optional[str] = None
 
 

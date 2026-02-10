@@ -13,44 +13,60 @@ interface Contact {
 
 export default function Contacts() {
   const router = useRouter();
-  const { user } = useSessionUser();
+  const { user, updateUser } = useSessionUser();
   const [userId, setUserId] = useState(user?.userId || "");
   const [contacts, setContacts] = useState<Contact[]>([]);
-  const [status, setStatus] = useState<string | null>(null);
-  const [creating, setCreating] = useState(false);
+  const [loadStatus, setLoadStatus] = useState<string | null>(null);
+  const [actionStatus, setActionStatus] = useState<string | null>(null);
+  const [creatingContactId, setCreatingContactId] = useState<string | null>(null);
 
   const loadContacts = async () => {
-    try {
-      setStatus("Loading...");
-      const res = await apiGet<any>(`/api/contacts?userId=${userId}`);
-      setContacts(res.data?.items || []);
-      setStatus(null);
-    } catch (error) {
-      setStatus("Failed to load contacts.");
-    }
-  };
-
-  const startChat = async (contactUserId: string) => {
-    if (!userId) {
-      setStatus("Please enter your user ID.");
+    const ownerId = userId.trim();
+    if (!ownerId) {
+      setLoadStatus("Please enter your user ID.");
       return;
     }
     try {
-      setCreating(true);
+      setLoadStatus("Loading...");
+      const res = await apiGet<any>(`/api/contacts?userId=${encodeURIComponent(ownerId)}`);
+      setContacts(res.data?.items || []);
+      setLoadStatus(null);
+    } catch (error) {
+      setLoadStatus("Failed to load contacts.");
+    }
+  };
+
+  const startChat = async (contactUserId: string, contactId: string) => {
+    const ownerId = userId.trim();
+    if (!ownerId) {
+      setActionStatus("Please enter your user ID.");
+      return;
+    }
+    try {
+      setActionStatus("Creating conversation...");
+      setCreatingContactId(contactId);
       const payload = {
         type: "ONE_ON_ONE",
-        participantIds: [userId, contactUserId]
+        participantIds: [ownerId, contactUserId]
       };
       const res = await apiPost<any>("/api/conversations", payload);
       const conversationId = res.data?.conversationId;
       if (conversationId) {
+        setActionStatus(null);
         router.push(`/chat/${conversationId}`);
+      } else {
+        setActionStatus("Conversation creation failed.");
       }
     } catch (error) {
-      setStatus("Failed to start chat.");
+      setActionStatus("Failed to start chat.");
     } finally {
-      setCreating(false);
+      setCreatingContactId(null);
     }
+  };
+
+  const onChangeUserId = (value: string) => {
+    setUserId(value);
+    updateUser({ userId: value });
   };
 
   return (
@@ -65,14 +81,15 @@ export default function Contacts() {
             className="input"
             placeholder="Your user ID"
             value={userId}
-            onChange={(e) => setUserId(e.target.value)}
+            onChange={(event) => onChangeUserId(event.target.value)}
           />
           <button className="btn-primary" onClick={loadContacts}>
             Load
           </button>
         </div>
-        {status && <p style={{ color: "var(--color-muted)" }}>{status}</p>}
-        {!status && contacts.length === 0 && (
+        {loadStatus && <p className="hint">{loadStatus}</p>}
+        {actionStatus && <p className="hint">{actionStatus}</p>}
+        {!loadStatus && contacts.length === 0 && (
           <p className="empty-state">No contacts yet. Try loading your AI agents.</p>
         )}
         <div className="list">
@@ -85,13 +102,14 @@ export default function Contacts() {
                 </div>
               </div>
               <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                <span className="tag">{contact.groupName || "ungrouped"}</span>
                 <span className="tag">{contact.blocked ? "Blocked" : "Online"}</span>
                 <button
                   className="btn-secondary"
-                  disabled={creating || contact.blocked}
-                  onClick={() => startChat(contact.contactUserId)}
+                  disabled={Boolean(creatingContactId) || contact.blocked}
+                  onClick={() => startChat(contact.contactUserId, contact.contactId)}
                 >
-                  Start Chat
+                  {creatingContactId === contact.contactId ? "Starting..." : "Start Chat"}
                 </button>
               </div>
             </div>

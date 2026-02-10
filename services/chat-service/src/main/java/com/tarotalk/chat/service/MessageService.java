@@ -65,25 +65,95 @@ public class MessageService {
                     .map(com.tarotalk.chat.domain.ConversationParticipant::getUserId)
                     .collect(java.util.stream.Collectors.toList());
             List<MessageContext> context = buildContextIfMissing(conversationId, request.getSenderId(), request.getContext());
-            String replyText = orchestratorClient.generateReply(conversationId.toString(), request.getPersonaSummary(), context, participants, request.getSenderId());
-            if (replyText == null || replyText.isEmpty()) {
-                replyText = aiClient.generateReply(request.getPersonaSummary(), conversationId.toString(), context);
-            }
-            if (replyText != null && !replyText.isEmpty()) {
-                ChatMessage aiMessage = new ChatMessage();
-                aiMessage.setConversationId(conversationId);
-                aiMessage.setSenderId(request.getSenderId());
-                aiMessage.setType("text");
-                aiMessage.setContent(replyText);
-                aiMessage.setSentAt(Instant.now());
-                ChatMessage aiSaved = chatMessageRepository.save(aiMessage);
-                conversation.setLastMessageId(aiSaved.getMessageId());
-                conversation.setUpdatedAt(Instant.now());
-                conversationRepository.save(conversation);
-                webSocketPublisher.publish(conversationId.toString(), aiSaved);
+            OrchestratorReply orchestratorReply = orchestratorClient.generateReply(
+                    conversationId.toString(),
+                    request.getPersonaSummary(),
+                    context,
+                    participants,
+                    request.getSenderId()
+            );
+            boolean persistedByTurn = persistOrchestratorTurns(conversation, participants, request.getSenderId(), orchestratorReply);
+            if (!persistedByTurn) {
+                String replyText = orchestratorReply == null ? "" : orchestratorReply.getReply();
+                if (replyText == null || replyText.isEmpty()) {
+                    replyText = aiClient.generateReply(request.getPersonaSummary(), conversationId.toString(), context);
+                }
+                if (replyText != null && !replyText.isEmpty()) {
+                    UUID fallbackSender = chooseFallbackAiSender(participants, request.getSenderId());
+                    ChatMessage aiMessage = new ChatMessage();
+                    aiMessage.setConversationId(conversationId);
+                    aiMessage.setSenderId(fallbackSender);
+                    aiMessage.setType("text");
+                    aiMessage.setContent(replyText);
+                    aiMessage.setSentAt(Instant.now());
+                    ChatMessage aiSaved = chatMessageRepository.save(aiMessage);
+                    conversation.setLastMessageId(aiSaved.getMessageId());
+                    conversation.setUpdatedAt(Instant.now());
+                    conversationRepository.save(conversation);
+                    webSocketPublisher.publish(conversationId.toString(), aiSaved);
+                }
             }
         }
         return saved;
+    }
+
+    private boolean persistOrchestratorTurns(Conversation conversation,
+                                             List<UUID> participants,
+                                             UUID senderId,
+                                             OrchestratorReply orchestratorReply) {
+        if (orchestratorReply == null || orchestratorReply.getTurns() == null || orchestratorReply.getTurns().isEmpty()) {
+            return false;
+        }
+
+        ChatMessage lastSaved = null;
+        for (OrchestratorReply.Turn turn : orchestratorReply.getTurns()) {
+            if (turn == null || turn.getContent() == null || turn.getContent().trim().isEmpty()) {
+                continue;
+            }
+            UUID turnSender = parseUuid(turn.getUserId());
+            if (turnSender == null) {
+                turnSender = chooseFallbackAiSender(participants, senderId);
+            }
+            ChatMessage aiMessage = new ChatMessage();
+            aiMessage.setConversationId(conversation.getConversationId());
+            aiMessage.setSenderId(turnSender);
+            aiMessage.setType("text");
+            aiMessage.setContent(turn.getContent());
+            aiMessage.setSentAt(Instant.now());
+            lastSaved = chatMessageRepository.save(aiMessage);
+            webSocketPublisher.publish(conversation.getConversationId().toString(), lastSaved);
+        }
+
+        if (lastSaved == null) {
+            return false;
+        }
+        conversation.setLastMessageId(lastSaved.getMessageId());
+        conversation.setUpdatedAt(Instant.now());
+        conversationRepository.save(conversation);
+        return true;
+    }
+
+    private UUID chooseFallbackAiSender(List<UUID> participants, UUID senderId) {
+        if (participants == null || participants.isEmpty()) {
+            return senderId;
+        }
+        for (UUID participant : participants) {
+            if (participant != null && !participant.equals(senderId)) {
+                return participant;
+            }
+        }
+        return senderId;
+    }
+
+    private UUID parseUuid(String value) {
+        if (value == null || value.trim().isEmpty()) {
+            return null;
+        }
+        try {
+            return UUID.fromString(value.trim());
+        } catch (IllegalArgumentException ex) {
+            return null;
+        }
     }
 
     public PageResponse<ChatMessage> listMessages(UUID conversationId, int page, int size) {

@@ -11,6 +11,7 @@ import com.tarotalk.chat.repo.ConversationRepository;
 import com.tarotalk.chat.service.AiClient;
 import com.tarotalk.chat.service.MessageService;
 import com.tarotalk.chat.service.OrchestratorClient;
+import com.tarotalk.chat.service.OrchestratorReply;
 import com.tarotalk.chat.websocket.WebSocketPublisher;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -18,6 +19,7 @@ import org.springframework.data.domain.PageImpl;
 
 import java.time.Instant;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -78,7 +80,7 @@ public class MessageServiceTest {
                         new ConversationParticipant(UUID.randomUUID(), conversationId, otherId, ConversationParticipant.Role.MEMBER)
                 ));
         when(orchestratorClient.generateReply(anyString(), anyString(), anyList(), anyList(), any()))
-                .thenReturn("");
+                .thenReturn(new OrchestratorReply());
 
         ArgumentCaptor<List<MessageContext>> contextCaptor = ArgumentCaptor.forClass(List.class);
         when(aiClient.generateReply(anyString(), anyString(), contextCaptor.capture()))
@@ -98,5 +100,143 @@ public class MessageServiceTest {
         assertEquals("user", captured.get(0).getRole());
         assertEquals("second", captured.get(1).getContent());
         assertEquals("assistant", captured.get(1).getRole());
+    }
+
+    @Test
+    void persistStructuredTurnsFromOrchestrator() {
+        ChatMessageRepository chatMessageRepository = mock(ChatMessageRepository.class);
+        ConversationRepository conversationRepository = mock(ConversationRepository.class);
+        ConversationParticipantRepository participantRepository = mock(ConversationParticipantRepository.class);
+        AiClient aiClient = mock(AiClient.class);
+        OrchestratorClient orchestratorClient = mock(OrchestratorClient.class);
+        WebSocketPublisher webSocketPublisher = mock(WebSocketPublisher.class);
+
+        MessageService messageService = new MessageService(
+                chatMessageRepository,
+                conversationRepository,
+                participantRepository,
+                aiClient,
+                orchestratorClient,
+                webSocketPublisher
+        );
+
+        UUID conversationId = UUID.randomUUID();
+        UUID senderId = UUID.randomUUID();
+        UUID aiId = UUID.randomUUID();
+
+        Conversation conversation = new Conversation(conversationId, Conversation.Type.ONE_ON_ONE, "test");
+        when(conversationRepository.findById(conversationId)).thenReturn(Optional.of(conversation));
+
+        when(chatMessageRepository.save(any(ChatMessage.class))).thenAnswer(invocation -> {
+            ChatMessage message = invocation.getArgument(0);
+            if (message.getMessageId() == null) {
+                message.setMessageId(UUID.randomUUID().toString());
+            }
+            return message;
+        });
+        when(conversationRepository.save(any(Conversation.class))).thenReturn(conversation);
+        when(participantRepository.findByConversationIdOrderByJoinTimeAsc(conversationId))
+                .thenReturn(Arrays.asList(
+                        new ConversationParticipant(UUID.randomUUID(), conversationId, senderId, ConversationParticipant.Role.OWNER),
+                        new ConversationParticipant(UUID.randomUUID(), conversationId, aiId, ConversationParticipant.Role.MEMBER)
+                ));
+        when(chatMessageRepository.findByConversationIdOrderBySentAtDesc(eq(conversationId), any()))
+                .thenReturn(new PageImpl<>(Collections.emptyList()));
+
+        OrchestratorReply reply = new OrchestratorReply();
+        OrchestratorReply.Turn turn1 = new OrchestratorReply.Turn();
+        turn1.setRound(1);
+        turn1.setRole("self-agent");
+        turn1.setUserId(senderId.toString());
+        turn1.setContent("self turn");
+        OrchestratorReply.Turn turn2 = new OrchestratorReply.Turn();
+        turn2.setRound(2);
+        turn2.setRole("friend");
+        turn2.setUserId(aiId.toString());
+        turn2.setContent("friend turn");
+        reply.setTurns(Arrays.asList(turn1, turn2));
+        when(orchestratorClient.generateReply(anyString(), anyString(), anyList(), anyList(), any()))
+                .thenReturn(reply);
+
+        MessageSendRequest request = new MessageSendRequest();
+        request.setSenderId(senderId);
+        request.setContent("trigger");
+        request.setGenerateAiReply(true);
+        request.setPersonaSummary("persona");
+
+        messageService.sendMessage(conversationId, request);
+
+        ArgumentCaptor<ChatMessage> saveCaptor = ArgumentCaptor.forClass(ChatMessage.class);
+        verify(chatMessageRepository, atLeast(3)).save(saveCaptor.capture());
+        List<ChatMessage> saved = saveCaptor.getAllValues();
+        assertEquals("trigger", saved.get(0).getContent());
+        assertEquals("self turn", saved.get(1).getContent());
+        assertEquals(senderId, saved.get(1).getSenderId());
+        assertEquals("friend turn", saved.get(2).getContent());
+        assertEquals(aiId, saved.get(2).getSenderId());
+        verify(aiClient, never()).generateReply(anyString(), anyString(), anyList());
+    }
+
+    @Test
+    void fallbackReplyUsesNonSenderParticipant() {
+        ChatMessageRepository chatMessageRepository = mock(ChatMessageRepository.class);
+        ConversationRepository conversationRepository = mock(ConversationRepository.class);
+        ConversationParticipantRepository participantRepository = mock(ConversationParticipantRepository.class);
+        AiClient aiClient = mock(AiClient.class);
+        OrchestratorClient orchestratorClient = mock(OrchestratorClient.class);
+        WebSocketPublisher webSocketPublisher = mock(WebSocketPublisher.class);
+
+        MessageService messageService = new MessageService(
+                chatMessageRepository,
+                conversationRepository,
+                participantRepository,
+                aiClient,
+                orchestratorClient,
+                webSocketPublisher
+        );
+
+        UUID conversationId = UUID.randomUUID();
+        UUID senderId = UUID.randomUUID();
+        UUID aiId = UUID.randomUUID();
+
+        Conversation conversation = new Conversation(conversationId, Conversation.Type.ONE_ON_ONE, "test");
+        when(conversationRepository.findById(conversationId)).thenReturn(Optional.of(conversation));
+
+        when(chatMessageRepository.save(any(ChatMessage.class))).thenAnswer(invocation -> {
+            ChatMessage message = invocation.getArgument(0);
+            if (message.getMessageId() == null) {
+                message.setMessageId(UUID.randomUUID().toString());
+            }
+            return message;
+        });
+        when(conversationRepository.save(any(Conversation.class))).thenReturn(conversation);
+        when(participantRepository.findByConversationIdOrderByJoinTimeAsc(conversationId))
+                .thenReturn(Arrays.asList(
+                        new ConversationParticipant(UUID.randomUUID(), conversationId, senderId, ConversationParticipant.Role.OWNER),
+                        new ConversationParticipant(UUID.randomUUID(), conversationId, aiId, ConversationParticipant.Role.MEMBER)
+                ));
+        when(chatMessageRepository.findByConversationIdOrderBySentAtDesc(eq(conversationId), any()))
+                .thenReturn(new PageImpl<>(Collections.emptyList()));
+
+        OrchestratorReply reply = new OrchestratorReply();
+        reply.setReply("single fallback reply");
+        when(orchestratorClient.generateReply(anyString(), anyString(), anyList(), anyList(), any()))
+                .thenReturn(reply);
+
+        MessageSendRequest request = new MessageSendRequest();
+        request.setSenderId(senderId);
+        request.setContent("trigger");
+        request.setGenerateAiReply(true);
+        request.setPersonaSummary("persona");
+
+        messageService.sendMessage(conversationId, request);
+
+        ArgumentCaptor<ChatMessage> saveCaptor = ArgumentCaptor.forClass(ChatMessage.class);
+        verify(chatMessageRepository, atLeast(2)).save(saveCaptor.capture());
+        List<ChatMessage> saved = saveCaptor.getAllValues();
+        ChatMessage fallback = saved.get(saved.size() - 1);
+        assertEquals("single fallback reply", fallback.getContent());
+        assertEquals(aiId, fallback.getSenderId());
+        verify(aiClient, never()).generateReply(anyString(), anyString(), anyList());
     }
 }

@@ -8,9 +8,11 @@ import org.springframework.stereotype.Service;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Pattern;
 
 @Service
 public class RelationshipService {
+    private static final Pattern TYPE_PATTERN = Pattern.compile("[a-z][a-z-]*");
     private final Neo4jClient neo4jClient;
 
     public RelationshipService(Neo4jClient neo4jClient) {
@@ -29,6 +31,9 @@ public class RelationshipService {
     }
 
     public void upsertRelationship(String userId, RelationshipUpdateRequest request) {
+        if (!TYPE_PATTERN.matcher(request.getType()).matches()) {
+            throw new com.tarotalk.common.exception.ApiException("VALIDATION_ERROR", "invalid relationship type");
+        }
         String query = "MERGE (u:User {id: $userId}) " +
                 "MERGE (t:User {id: $targetId}) " +
                 "MERGE (u)-[r:" + request.getType() + "]->(t) " +

@@ -122,6 +122,7 @@ mvn -q -DskipTests package
 > Docker 未安装时，无法进行 compose 级别的全量验证。
 
 ## 文档索引
+- 工程深度文档：`docs/project_documents/engineering_deep_dive.md`
 - 架构设计：`docs/project_documents/architecture_design.md`
 - API 设计：`docs/project_documents/api_design.md`
 - 系统交互：`docs/project_documents/system_interaction.md`

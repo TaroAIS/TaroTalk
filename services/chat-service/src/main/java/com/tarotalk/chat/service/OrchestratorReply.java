@@ -7,8 +7,12 @@ import java.util.Map;
 
 public class OrchestratorReply {
     private String reply;
+    private String traceId;
+    private List<Map<String, Object>> toolCalls = new ArrayList<>();
     private List<Turn> turns = new ArrayList<>();
     private Map<String, String> roleUserMap = new HashMap<>();
+    private Map<String, Object> directorTrace = new HashMap<>();
+    private List<Map<String, Object>> stateEffects = new ArrayList<>();
 
     public String getReply() {
         return reply;
@@ -16,6 +20,22 @@ public class OrchestratorReply {
 
     public void setReply(String reply) {
         this.reply = reply;
+    }
+
+    public String getTraceId() {
+        return traceId;
+    }
+
+    public void setTraceId(String traceId) {
+        this.traceId = traceId;
+    }
+
+    public List<Map<String, Object>> getToolCalls() {
+        return toolCalls;
+    }
+
+    public void setToolCalls(List<Map<String, Object>> toolCalls) {
+        this.toolCalls = toolCalls;
     }
 
     public List<Turn> getTurns() {
@@ -34,11 +54,28 @@ public class OrchestratorReply {
         this.roleUserMap = roleUserMap;
     }
 
+    public Map<String, Object> getDirectorTrace() {
+        return directorTrace;
+    }
+
+    public void setDirectorTrace(Map<String, Object> directorTrace) {
+        this.directorTrace = directorTrace;
+    }
+
+    public List<Map<String, Object>> getStateEffects() {
+        return stateEffects;
+    }
+
+    public void setStateEffects(List<Map<String, Object>> stateEffects) {
+        this.stateEffects = stateEffects;
+    }
+
     public static class Turn {
         private int round;
         private String role;
         private String userId;
         private String content;
+        private String effectRef;
 
         public int getRound() {
             return round;
@@ -70,6 +107,14 @@ public class OrchestratorReply {
 
         public void setContent(String content) {
             this.content = content;
+        }
+
+        public String getEffectRef() {
+            return effectRef;
+        }
+
+        public void setEffectRef(String effectRef) {
+            this.effectRef = effectRef;
         }
     }
 }

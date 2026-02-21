@@ -4,13 +4,40 @@ server:
 spring:
   application:
     name: tarotalk-scheduler-service
+  datasource:
+    url: jdbc:h2:mem:schedulerdb;DB_CLOSE_DELAY=-1
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+    properties:
+      hibernate:
+        type:
+          preferred_uuid_jdbc_type: CHAR
 
 integrations:
   orchestrator:
     base-url: http://localhost:8077
+  temporal-service:
+    base-url: http://localhost:8233
 
 scheduler:
   loop-delay-ms: 60000
+  default-run-interval-ms: 60000
+  max-retries: 5
+  retry-backoff-ms: 30000
+  workflow:
+    mode: direct
+
+http:
+  client:
+    connect-timeout-ms: 3000
+    read-timeout-ms: 5000
+    max-attempts: 3
+    retry-backoff-ms: 150
 
 management:
   endpoints:

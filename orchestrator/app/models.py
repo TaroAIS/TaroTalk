@@ -12,6 +12,9 @@ class A2AChatRequest(BaseModel):
     participants: List[str]
     sender_id: Optional[str] = None
     persona_summary: Optional[str] = None
+    world_id: Optional[str] = None
+    context_window: Optional[int] = None
+    intent: Optional[str] = None
     messages: List[Message]
 
 
@@ -32,6 +35,8 @@ class A2AChatResponse(BaseModel):
     tool_calls: List[ToolCall] = Field(default_factory=list)
     turns: List[Turn] = Field(default_factory=list)
     role_user_map: Dict[str, str] = Field(default_factory=dict)
+    director_trace: Dict[str, Any] = Field(default_factory=dict)
+    state_effects: List[Dict[str, Any]] = Field(default_factory=list)
     trace_id: Optional[str] = None
 
 
@@ -54,9 +59,15 @@ class BootstrapResponse(BaseModel):
 
 
 class SimulateRequest(BaseModel):
-    user_id: str
+    user_id: Optional[str] = None
+    world_id: Optional[str] = None
+    trigger_type: Optional[str] = None
     objective: Optional[str] = None
+    actors: List[str] = Field(default_factory=list)
+    priority: Optional[int] = None
 
 
 class SimulateResponse(BaseModel):
     status: str
+    workflow_id: Optional[str] = None
+    scheduled_events: List[Dict[str, Any]] = Field(default_factory=list)

@@ -16,6 +16,11 @@ public class MessageResponse {
     private Instant deliveredAt;
     private Instant readAt;
     private String replyToMessageId;
+    private String role;
+    private Integer round;
+    private String traceId;
+    private String source;
+    private String effectRef;
 
     public static MessageResponse from(ChatMessage message) {
         MessageResponse response = new MessageResponse();
@@ -29,6 +34,11 @@ public class MessageResponse {
         response.deliveredAt = message.getDeliveredAt();
         response.readAt = message.getReadAt();
         response.replyToMessageId = message.getReplyToMessageId();
+        response.role = message.getRole();
+        response.round = message.getRound();
+        response.traceId = message.getTraceId();
+        response.source = message.getSource();
+        response.effectRef = message.getEffectRef();
         return response;
     }
 
@@ -70,5 +80,25 @@ public class MessageResponse {
 
     public String getReplyToMessageId() {
         return replyToMessageId;
+    }
+
+    public String getRole() {
+        return role;
+    }
+
+    public Integer getRound() {
+        return round;
+    }
+
+    public String getTraceId() {
+        return traceId;
+    }
+
+    public String getSource() {
+        return source;
+    }
+
+    public String getEffectRef() {
+        return effectRef;
     }
 }

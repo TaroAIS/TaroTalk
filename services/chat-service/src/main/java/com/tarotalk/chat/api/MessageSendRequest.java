@@ -17,6 +17,9 @@ public class MessageSendRequest {
 
     private boolean generateAiReply;
     private String personaSummary;
+    private String worldId;
+    private Integer contextWindow;
+    private String intent;
     private List<MessageContext> context;
 
     public UUID getSenderId() {
@@ -65,6 +68,30 @@ public class MessageSendRequest {
 
     public void setPersonaSummary(String personaSummary) {
         this.personaSummary = personaSummary;
+    }
+
+    public String getWorldId() {
+        return worldId;
+    }
+
+    public void setWorldId(String worldId) {
+        this.worldId = worldId;
+    }
+
+    public Integer getContextWindow() {
+        return contextWindow;
+    }
+
+    public void setContextWindow(Integer contextWindow) {
+        this.contextWindow = contextWindow;
+    }
+
+    public String getIntent() {
+        return intent;
+    }
+
+    public void setIntent(String intent) {
+        this.intent = intent;
     }
 
     public List<MessageContext> getContext() {

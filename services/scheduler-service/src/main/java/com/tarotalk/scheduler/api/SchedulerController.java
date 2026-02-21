@@ -19,13 +19,12 @@ public class SchedulerController {
     }
 
     @PostMapping
-    public ApiResponse<Void> create(@Valid @RequestBody TaskRequest request) {
-        schedulerService.register(request);
-        return ApiResponse.ok(null);
+    public ApiResponse<TaskResponse> create(@Valid @RequestBody TaskRequest request) {
+        return ApiResponse.ok(schedulerService.register(request));
     }
 
     @GetMapping
-    public ApiResponse<List<TaskRequest>> list() {
+    public ApiResponse<List<TaskResponse>> list() {
         return ApiResponse.ok(schedulerService.list());
     }
 }

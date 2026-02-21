@@ -28,11 +28,12 @@ public class FeedController {
     @GetMapping
     public ApiResponse<List<FeedResponse>> list(@RequestParam(required = false) java.util.UUID viewerId,
                                                 @RequestParam(required = false) String visibility,
+                                                @RequestParam(defaultValue = "true") boolean includeSelf,
                                                 @RequestParam(required = false) Integer limit,
                                                 @RequestParam(required = false) String cursor) {
         List<com.tarotalk.feed.domain.Feed> feeds = viewerId == null
                 ? feedService.list(limit, cursor)
-                : feedService.listVisible(viewerId, visibility, limit, cursor);
+                : feedService.listVisible(viewerId, visibility, includeSelf, limit, cursor);
         return ApiResponse.ok(feedService.buildResponses(feeds, viewerId));
     }
 

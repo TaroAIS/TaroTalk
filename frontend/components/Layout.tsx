@@ -22,6 +22,7 @@ export default function Layout({ children }: LayoutProps) {
           <Link href="/">Home</Link>
           <Link href="/contacts">Contacts</Link>
           <Link href="/feed">Feed</Link>
+          <Link href="/trace/demo-trace-id">Trace</Link>
           <Link href="/profile">Profile</Link>
         </nav>
       </header>

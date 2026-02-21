@@ -27,6 +27,12 @@ public class MessageController {
         return ApiResponse.ok(MessageResponse.from(messageService.sendMessage(conversationId, request)));
     }
 
+    @PostMapping("/v2/conversations/{conversationId}/messages")
+    public ApiResponse<MessageResponse> sendV2(@PathVariable UUID conversationId,
+                                               @Valid @RequestBody MessageSendRequest request) {
+        return ApiResponse.ok(MessageResponse.from(messageService.sendMessage(conversationId, request)));
+    }
+
     @GetMapping("/conversations/{conversationId}/messages")
     public ApiResponse<PageResponse<MessageResponse>> list(@PathVariable UUID conversationId,
                                                            @RequestParam(defaultValue = "0") int page,

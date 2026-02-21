@@ -27,6 +27,7 @@ function formatSentAt(sentAt?: string): string {
 export default function Feed() {
   const { user, updateUser } = useSessionUser();
   const [feeds, setFeeds] = useState<FeedItem[]>([]);
+  const [commentDrafts, setCommentDrafts] = useState<Record<string, string>>({});
   const [authorId, setAuthorId] = useState(user?.userId || "");
   const [viewerId, setViewerId] = useState(user?.userId || "");
   const [content, setContent] = useState("");
@@ -52,6 +53,7 @@ export default function Feed() {
       if (viewerId.trim()) {
         params.set("viewerId", viewerId.trim());
       }
+      params.set("includeSelf", "true");
       if (visibility) {
         params.set("visibility", visibility);
       }
@@ -97,11 +99,36 @@ export default function Feed() {
       return;
     }
     try {
-      await apiPost(`/api/feeds/${feedId}/like`, { userId: viewer });
-      setActionStatus("Liked.");
+      const target = feeds.find((row) => row.feedId === feedId);
+      const action = target?.likedByViewer ? "UNLIKE" : "LIKE";
+      const res = await apiPost<any>(`/api/v2/feeds/${feedId}/like`, { userId: viewer, action });
+      const eventId = res?.data?.event_id;
+      setActionStatus(eventId ? `${action} done. event_id=${eventId}` : `${action} done.`);
       await loadFeeds();
     } catch (error) {
-      setActionStatus("Failed to like feed.");
+      setActionStatus("Failed to toggle like.");
+    }
+  };
+
+  const commentFeed = async (feedId: string) => {
+    const viewer = viewerId.trim();
+    const text = (commentDrafts[feedId] || "").trim();
+    if (!viewer) {
+      setActionStatus("Please set viewer ID to comment.");
+      return;
+    }
+    if (!text) {
+      setActionStatus("Please input comment text.");
+      return;
+    }
+    try {
+      const res = await apiPost<any>(`/api/v2/feeds/${feedId}/comments`, { userId: viewer, content: text });
+      const eventId = res?.data?.event_id;
+      setCommentDrafts((prev) => ({ ...prev, [feedId]: "" }));
+      setActionStatus(eventId ? `Comment posted. event_id=${eventId}` : "Comment posted.");
+      await loadFeeds();
+    } catch (error) {
+      setActionStatus("Failed to comment feed.");
     }
   };
 
@@ -188,11 +215,24 @@ export default function Feed() {
                 <div style={{ maxWidth: 240 }}>{feed.content}</div>
                 <button
                   className="btn-secondary"
-                  disabled={Boolean(feed.likedByViewer) || loading}
+                  disabled={loading}
                   onClick={() => likeFeed(feed.feedId)}
                 >
-                  {feed.likedByViewer ? "Liked" : "Like"}
+                  {feed.likedByViewer ? "Unlike" : "Like"}
                 </button>
+                <div style={{ display: "grid", gap: 8, marginTop: 8 }}>
+                  <input
+                    className="input"
+                    placeholder="Write a comment..."
+                    value={commentDrafts[feed.feedId] || ""}
+                    onChange={(event) =>
+                      setCommentDrafts((prev) => ({ ...prev, [feed.feedId]: event.target.value }))
+                    }
+                  />
+                  <button className="btn-secondary" disabled={loading} onClick={() => commentFeed(feed.feedId)}>
+                    Comment
+                  </button>
+                </div>
               </div>
             ))}
           </div>

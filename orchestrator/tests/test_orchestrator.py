@@ -127,3 +127,58 @@ def test_director_roles(monkeypatch):
     round_two = [prompt for prompt in prompts if "Round: 2" in prompt][0]
     assert "- mentor:" in round_two
     assert result["turns"][1]["role"] == "mentor"
+
+
+def test_chat_outputs_director_trace_and_state_effects(monkeypatch):
+    def fake_completion(messages, tools=None, tool_choice=None):
+        return {"choices": [{"message": {"content": "[self-agent] hello there"}}]}
+
+    class DummyExecutor:
+        async def execute(self, name, arguments):
+            return {"ok": True}
+
+    monkeypatch.setattr(orch_module, "run_completion", fake_completion)
+    engine = OrchestratorEngine(max_steps=1, max_tool_calls=1)
+    engine.executor = DummyExecutor()
+
+    async def fake_load_relationship_map(sender_id):
+        return {}
+
+    async def fake_load_memories(role_map):
+        return {}
+
+    monkeypatch.setattr(engine, "_load_relationship_map", fake_load_relationship_map)
+    monkeypatch.setattr(engine, "_load_memories", fake_load_memories)
+
+    result = asyncio.get_event_loop().run_until_complete(
+        engine.run_chat(
+            [{"role": "user", "content": "hi"}],
+            "persona",
+            ["u1"],
+            "u1",
+            rounds=1,
+            world_id="w1",
+            intent="chat",
+            conversation_id="c1",
+        )
+    )
+    assert "director_trace" in result
+    assert result["director_trace"]["world_id"] == "w1"
+    assert len(result["state_effects"]) >= 1
+    assert result["state_effects"][0]["effect_type"] == "CHAT_MESSAGE"
+
+
+def test_run_simulation_v2_shape():
+    engine = OrchestratorEngine(max_steps=1, max_tool_calls=1)
+    result = asyncio.get_event_loop().run_until_complete(
+        engine.run_simulation(
+            world_id="world-1",
+            trigger_type="SCHEDULED_TICK",
+            objective="advance arc",
+            actors=["a1", "a2"],
+            priority=80,
+        )
+    )
+    assert result["status"] == "scheduled"
+    assert result["workflow_id"]
+    assert len(result["scheduled_events"]) == 2

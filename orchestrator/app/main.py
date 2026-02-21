@@ -19,6 +19,7 @@ from .orchestrator import OrchestratorEngine
 
 app = FastAPI(title="Tarotalk Orchestrator")
 router = APIRouter(prefix="/a2a")
+v2_router = APIRouter(prefix="/api/v2/a2a")
 engine = OrchestratorEngine()
 
 
@@ -66,7 +67,11 @@ async def tools():
 async def bootstrap(request: BootstrapRequest):
     roles = ["friend", "mentor", "rival", "advertiser"]
     agents = []
-    async with httpx.AsyncClient() as client:
+    timeout = httpx.Timeout(
+        timeout=settings.http_timeout_seconds,
+        connect=settings.http_connect_timeout_seconds
+    )
+    async with httpx.AsyncClient(timeout=timeout) as client:
         # self-agent
         self_profile = await create_user(client, "Self Agent", "AI", request.user_id)
         await create_contact(client, request.user_id, self_profile["userId"], "self")
@@ -99,24 +104,78 @@ async def bootstrap(request: BootstrapRequest):
 
 @router.post("/chat", response_model=A2AChatResponse)
 async def chat(request: A2AChatRequest):
+    return await run_chat(request)
+
+
+@v2_router.post("/chat", response_model=A2AChatResponse)
+async def chat_v2(request: A2AChatRequest):
+    return await run_chat(request)
+
+
+async def run_chat(request: A2AChatRequest) -> A2AChatResponse:
     messages = [msg.model_dump() for msg in request.messages]
-    result = await engine.run_chat(messages, request.persona_summary, request.participants, request.sender_id, rounds=2)
+    result = await engine.run_chat(
+        messages=messages,
+        persona_summary=request.persona_summary,
+        participants=request.participants,
+        sender_id=request.sender_id,
+        rounds=2,
+        world_id=request.world_id,
+        context_window=request.context_window,
+        intent=request.intent,
+        conversation_id=request.conversation_id,
+    )
     trace_id = str(uuid.uuid4())
+    director_trace = result.get("director_trace", {})
+    if isinstance(director_trace, dict):
+        director_trace["trace_id"] = trace_id
+    state_effects = result.get("state_effects", [])
+    if isinstance(state_effects, list):
+        for effect in state_effects:
+            if isinstance(effect, dict):
+                effect["trace_id"] = trace_id
+    reply = result.get("reply", "")
+    if (not reply) and result.get("turns"):
+        reply = "\n".join([str(turn.get("content", "")) for turn in result.get("turns", []) if isinstance(turn, dict)])
     return A2AChatResponse(
-        reply=result["reply"],
-        tool_calls=result["tool_calls"],
+        reply=reply,
+        tool_calls=result.get("tool_calls", []),
         turns=result.get("turns", []),
         role_user_map=result.get("role_user_map", {}),
+        director_trace=director_trace if isinstance(director_trace, dict) else {},
+        state_effects=state_effects if isinstance(state_effects, list) else [],
         trace_id=trace_id,
     )
 
 
 @router.post("/simulate", response_model=SimulateResponse)
 async def simulate(request: SimulateRequest):
-    prompt = f"Generate a short action for user {request.user_id}. Objective: {request.objective or 'daily update'}"
-    result = await engine.run_chat([{"role": "user", "content": prompt}], None)
-    return SimulateResponse(status=result["reply"] or "ok")
+    return await run_simulation(request)
+
+
+@v2_router.post("/simulate", response_model=SimulateResponse)
+async def simulate_v2(request: SimulateRequest):
+    return await run_simulation(request)
+
+
+async def run_simulation(request: SimulateRequest) -> SimulateResponse:
+    actors = list(request.actors or [])
+    if request.user_id and request.user_id not in actors:
+        actors.append(request.user_id)
+    result = await engine.run_simulation(
+        world_id=request.world_id,
+        trigger_type=request.trigger_type,
+        objective=request.objective,
+        actors=actors,
+        priority=request.priority,
+    )
+    return SimulateResponse(
+        status=str(result.get("status") or "scheduled"),
+        workflow_id=str(result.get("workflow_id")) if result.get("workflow_id") else None,
+        scheduled_events=result.get("scheduled_events") or [],
+    )
 
 
 app.include_router(router)
 app.include_router(router, prefix="/api")
+app.include_router(v2_router)

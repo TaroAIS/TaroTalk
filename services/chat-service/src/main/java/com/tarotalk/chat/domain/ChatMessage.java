@@ -19,6 +19,11 @@ public class ChatMessage {
     private Instant deliveredAt;
     private Instant readAt;
     private String replyToMessageId;
+    private String role;
+    private Integer round;
+    private String traceId;
+    private String source;
+    private String effectRef;
 
     public ChatMessage() {
     }
@@ -101,5 +106,45 @@ public class ChatMessage {
 
     public void setReplyToMessageId(String replyToMessageId) {
         this.replyToMessageId = replyToMessageId;
+    }
+
+    public String getRole() {
+        return role;
+    }
+
+    public void setRole(String role) {
+        this.role = role;
+    }
+
+    public Integer getRound() {
+        return round;
+    }
+
+    public void setRound(Integer round) {
+        this.round = round;
+    }
+
+    public String getTraceId() {
+        return traceId;
+    }
+
+    public void setTraceId(String traceId) {
+        this.traceId = traceId;
+    }
+
+    public String getSource() {
+        return source;
+    }
+
+    public void setSource(String source) {
+        this.source = source;
+    }
+
+    public String getEffectRef() {
+        return effectRef;
+    }
+
+    public void setEffectRef(String effectRef) {
+        this.effectRef = effectRef;
     }
 }

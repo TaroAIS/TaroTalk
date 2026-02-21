@@ -9,10 +9,12 @@ import com.tarotalk.chat.repo.ChatMessageRepository;
 import com.tarotalk.chat.repo.ConversationParticipantRepository;
 import com.tarotalk.chat.repo.ConversationRepository;
 import com.tarotalk.chat.service.AiClient;
+import com.tarotalk.chat.service.ChatEventPublisher;
 import com.tarotalk.chat.service.MessageService;
 import com.tarotalk.chat.service.OrchestratorClient;
 import com.tarotalk.chat.service.OrchestratorReply;
 import com.tarotalk.chat.websocket.WebSocketPublisher;
+import com.tarotalk.common.exception.ApiException;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.data.domain.PageImpl;
@@ -25,6 +27,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -40,6 +43,7 @@ public class MessageServiceTest {
         AiClient aiClient = mock(AiClient.class);
         OrchestratorClient orchestratorClient = mock(OrchestratorClient.class);
         WebSocketPublisher webSocketPublisher = mock(WebSocketPublisher.class);
+        ChatEventPublisher chatEventPublisher = mock(ChatEventPublisher.class);
 
         MessageService messageService = new MessageService(
                 chatMessageRepository,
@@ -47,7 +51,8 @@ public class MessageServiceTest {
                 participantRepository,
                 aiClient,
                 orchestratorClient,
-                webSocketPublisher
+                webSocketPublisher,
+                chatEventPublisher
         );
 
         UUID conversationId = UUID.randomUUID();
@@ -79,7 +84,7 @@ public class MessageServiceTest {
                         new ConversationParticipant(UUID.randomUUID(), conversationId, senderId, ConversationParticipant.Role.OWNER),
                         new ConversationParticipant(UUID.randomUUID(), conversationId, otherId, ConversationParticipant.Role.MEMBER)
                 ));
-        when(orchestratorClient.generateReply(anyString(), anyString(), anyList(), anyList(), any()))
+        when(orchestratorClient.generateReply(anyString(), anyString(), anyList(), anyList(), any(), any(), any(), any()))
                 .thenReturn(new OrchestratorReply());
 
         ArgumentCaptor<List<MessageContext>> contextCaptor = ArgumentCaptor.forClass(List.class);
@@ -110,6 +115,7 @@ public class MessageServiceTest {
         AiClient aiClient = mock(AiClient.class);
         OrchestratorClient orchestratorClient = mock(OrchestratorClient.class);
         WebSocketPublisher webSocketPublisher = mock(WebSocketPublisher.class);
+        ChatEventPublisher chatEventPublisher = mock(ChatEventPublisher.class);
 
         MessageService messageService = new MessageService(
                 chatMessageRepository,
@@ -117,7 +123,8 @@ public class MessageServiceTest {
                 participantRepository,
                 aiClient,
                 orchestratorClient,
-                webSocketPublisher
+                webSocketPublisher,
+                chatEventPublisher
         );
 
         UUID conversationId = UUID.randomUUID();
@@ -155,7 +162,7 @@ public class MessageServiceTest {
         turn2.setUserId(aiId.toString());
         turn2.setContent("friend turn");
         reply.setTurns(Arrays.asList(turn1, turn2));
-        when(orchestratorClient.generateReply(anyString(), anyString(), anyList(), anyList(), any()))
+        when(orchestratorClient.generateReply(anyString(), anyString(), anyList(), anyList(), any(), any(), any(), any()))
                 .thenReturn(reply);
 
         MessageSendRequest request = new MessageSendRequest();
@@ -185,6 +192,7 @@ public class MessageServiceTest {
         AiClient aiClient = mock(AiClient.class);
         OrchestratorClient orchestratorClient = mock(OrchestratorClient.class);
         WebSocketPublisher webSocketPublisher = mock(WebSocketPublisher.class);
+        ChatEventPublisher chatEventPublisher = mock(ChatEventPublisher.class);
 
         MessageService messageService = new MessageService(
                 chatMessageRepository,
@@ -192,7 +200,8 @@ public class MessageServiceTest {
                 participantRepository,
                 aiClient,
                 orchestratorClient,
-                webSocketPublisher
+                webSocketPublisher,
+                chatEventPublisher
         );
 
         UUID conversationId = UUID.randomUUID();
@@ -220,7 +229,7 @@ public class MessageServiceTest {
 
         OrchestratorReply reply = new OrchestratorReply();
         reply.setReply("single fallback reply");
-        when(orchestratorClient.generateReply(anyString(), anyString(), anyList(), anyList(), any()))
+        when(orchestratorClient.generateReply(anyString(), anyString(), anyList(), anyList(), any(), any(), any(), any()))
                 .thenReturn(reply);
 
         MessageSendRequest request = new MessageSendRequest();
@@ -238,5 +247,45 @@ public class MessageServiceTest {
         assertEquals("single fallback reply", fallback.getContent());
         assertEquals(aiId, fallback.getSenderId());
         verify(aiClient, never()).generateReply(anyString(), anyString(), anyList());
+    }
+
+    @Test
+    void sendMessageRejectsNonParticipantSender() {
+        ChatMessageRepository chatMessageRepository = mock(ChatMessageRepository.class);
+        ConversationRepository conversationRepository = mock(ConversationRepository.class);
+        ConversationParticipantRepository participantRepository = mock(ConversationParticipantRepository.class);
+        AiClient aiClient = mock(AiClient.class);
+        OrchestratorClient orchestratorClient = mock(OrchestratorClient.class);
+        WebSocketPublisher webSocketPublisher = mock(WebSocketPublisher.class);
+        ChatEventPublisher chatEventPublisher = mock(ChatEventPublisher.class);
+
+        MessageService messageService = new MessageService(
+                chatMessageRepository,
+                conversationRepository,
+                participantRepository,
+                aiClient,
+                orchestratorClient,
+                webSocketPublisher,
+                chatEventPublisher
+        );
+
+        UUID conversationId = UUID.randomUUID();
+        UUID senderId = UUID.randomUUID();
+        UUID otherId = UUID.randomUUID();
+
+        Conversation conversation = new Conversation(conversationId, Conversation.Type.ONE_ON_ONE, "test");
+        when(conversationRepository.findById(conversationId)).thenReturn(Optional.of(conversation));
+        when(participantRepository.findByConversationIdOrderByJoinTimeAsc(conversationId))
+                .thenReturn(Collections.singletonList(
+                        new ConversationParticipant(UUID.randomUUID(), conversationId, otherId, ConversationParticipant.Role.OWNER)
+                ));
+
+        MessageSendRequest request = new MessageSendRequest();
+        request.setSenderId(senderId);
+        request.setContent("unauthorized");
+        request.setGenerateAiReply(false);
+
+        assertThrows(ApiException.class, () -> messageService.sendMessage(conversationId, request));
+        verify(chatMessageRepository, never()).save(any(ChatMessage.class));
     }
 }

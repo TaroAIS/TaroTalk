@@ -2,6 +2,7 @@ from typing import List, Dict, Any, Optional
 import asyncio
 import json
 import re
+import uuid
 import httpx
 
 from .llm_client import run_completion
@@ -27,18 +28,29 @@ class OrchestratorEngine:
         participants: Optional[List[str]] = None,
         sender_id: Optional[str] = None,
         rounds: int = 2,
+        world_id: Optional[str] = None,
+        context_window: Optional[int] = None,
+        intent: Optional[str] = None,
+        conversation_id: Optional[str] = None,
     ) -> Dict[str, Any]:
-        system_prompt = self._build_system_prompt(persona_summary, participants)
-        convo = [{"role": "system", "content": system_prompt}] + messages
+        seed_messages = messages
+        if context_window and context_window > 0:
+            seed_messages = messages[-context_window:]
+
+        system_prompt = self._build_system_prompt(persona_summary, participants, world_id, intent)
+        convo = [{"role": "system", "content": system_prompt}] + seed_messages
         tool_calls_collected: List[Dict[str, Any]] = []
         replies: List[str] = []
         turns: List[Dict[str, Any]] = []
+        director_rounds: List[Dict[str, Any]] = []
         bindings = await self._build_role_bindings(sender_id, participants or [])
         role_map = {item["role"]: item["user_id"] for item in bindings}
         memories = await self._load_memories(role_map)
 
         for round_index in range(rounds):
             speakers = pick_round_speakers(bindings, round_index)
+            if not speakers:
+                continue
             speaker_roles = [speaker["role"] for speaker in speakers]
             speaker_block = "\n".join([f"- {speaker['role']}: {role_style(speaker['role'])}" for speaker in speakers])
             memory_block = self._build_memory_block(speakers, memories)
@@ -50,6 +62,18 @@ class OrchestratorEngine:
                 f"{memory_block}"
             )
             convo.append({"role": "system", "content": round_prompt})
+            round_trace: Dict[str, Any] = {
+                "round": round_index + 1,
+                "speakers": [
+                    {
+                        "role": speaker.get("role"),
+                        "user_id": speaker.get("user_id"),
+                        "weight": float(speaker.get("weight", 0.0)),
+                    }
+                    for speaker in speakers
+                ],
+                "tool_calls": [],
+            }
 
             for _ in range(self.max_steps):
                 result = run_completion(convo, tools=self.tools, tool_choice="auto")
@@ -64,7 +88,9 @@ class OrchestratorEngine:
                         except json.JSONDecodeError:
                             args = {}
                         output = await self.executor.execute(name, args)
-                        tool_calls_collected.append({"name": name, "arguments": args})
+                        tool_record = {"name": name, "arguments": args}
+                        tool_calls_collected.append(tool_record)
+                        round_trace["tool_calls"].append(tool_record)
                         convo.append(
                             {
                                 "role": "tool",
@@ -77,23 +103,90 @@ class OrchestratorEngine:
                 content = choice.get("content") or ""
                 if content:
                     replies.append(content)
-                    turns.extend(self._parse_turns(content, round_index + 1, role_map, speaker_roles))
+                    parsed_turns = self._parse_turns(content, round_index + 1, role_map, speaker_roles)
+                    if not parsed_turns and speakers:
+                        parsed_turns = [
+                            {
+                                "round": round_index + 1,
+                                "role": speakers[0]["role"],
+                                "user_id": speakers[0]["user_id"],
+                                "content": content.strip(),
+                            }
+                        ]
+                    turns.extend(parsed_turns)
+                    round_trace["generated_turns"] = len(parsed_turns)
+                    round_trace["raw_content"] = content
                     convo.append({"role": "assistant", "content": content})
                     break
+
+            director_rounds.append(round_trace)
 
         return {
             "reply": "\n".join(replies),
             "tool_calls": tool_calls_collected,
             "turns": turns,
             "role_user_map": role_map,
+            "director_trace": {
+                "world_id": world_id,
+                "intent": intent,
+                "bindings": bindings,
+                "rounds": director_rounds,
+            },
+            "state_effects": self._build_state_effects(turns, tool_calls_collected, conversation_id, world_id),
         }
 
-    def _build_system_prompt(self, persona_summary: Optional[str], participants: Optional[List[str]]) -> str:
+    async def run_simulation(
+        self,
+        world_id: Optional[str] = None,
+        trigger_type: Optional[str] = None,
+        objective: Optional[str] = None,
+        actors: Optional[List[str]] = None,
+        priority: Optional[int] = None,
+    ) -> Dict[str, Any]:
+        workflow_id = str(uuid.uuid4())
+        actor_list = [str(actor) for actor in (actors or []) if str(actor).strip()]
+        if not actor_list:
+            actor_list = ["director"]
+        effective_priority = 50 if priority is None else max(1, min(priority, 100))
+        effective_trigger = trigger_type or "SCHEDULED_TICK"
+        effective_objective = objective or "advance social continuity"
+
+        scheduled_events = []
+        for index, actor in enumerate(actor_list):
+            scheduled_events.append(
+                {
+                    "sequence": index + 1,
+                    "event_type": "WORLD_EVOLUTION",
+                    "trigger_type": effective_trigger,
+                    "objective": effective_objective,
+                    "actor_id": actor,
+                    "priority": effective_priority,
+                    "world_id": world_id,
+                }
+            )
+
+        return {
+            "workflow_id": workflow_id,
+            "scheduled_events": scheduled_events,
+            "status": "scheduled",
+        }
+
+    def _build_system_prompt(
+        self,
+        persona_summary: Optional[str],
+        participants: Optional[List[str]],
+        world_id: Optional[str],
+        intent: Optional[str],
+    ) -> str:
         base = "You are a multi-agent chat orchestrator."
         if persona_summary:
             base += f" Persona summary: {persona_summary}."
         if participants:
             base += f" Participants: {', '.join(participants)}."
+        if world_id:
+            base += f" World ID: {world_id}."
+        if intent:
+            base += f" Intent: {intent}."
         base += " Use tools when needed and answer concisely."
         return base
 
@@ -162,7 +255,7 @@ class OrchestratorEngine:
             return {}
 
         try:
-            async with httpx.AsyncClient() as client:
+            async with httpx.AsyncClient(timeout=self._http_timeout()) as client:
                 response = await client.get(f"{settings.relationship_service_url}/api/relationships/{sender_id}")
                 payload = response.json()
                 rows = payload.get("data", []) if isinstance(payload, dict) else []
@@ -188,13 +281,19 @@ class OrchestratorEngine:
         if not settings.notification_service_url:
             return {}
         memories: Dict[str, List[Dict[str, str]]] = {}
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(timeout=self._http_timeout()) as client:
             tasks = [self._fetch_feed_memories(client, role, user_id) for role, user_id in role_map.items()]
             results = await asyncio.gather(*tasks)
             for role, memory in results:
                 if memory:
                     memories[role] = memory
         return memories
+
+    def _http_timeout(self) -> httpx.Timeout:
+        return httpx.Timeout(
+            timeout=settings.http_timeout_seconds,
+            connect=settings.http_connect_timeout_seconds
+        )
 
     async def _fetch_feed_memories(
         self,
@@ -313,3 +412,34 @@ class OrchestratorEngine:
                 }
             )
         return turns
+
+    def _build_state_effects(
+        self,
+        turns: List[Dict[str, Any]],
+        tool_calls: List[Dict[str, Any]],
+        conversation_id: Optional[str],
+        world_id: Optional[str],
+    ) -> List[Dict[str, Any]]:
+        effects: List[Dict[str, Any]] = []
+        for turn in turns:
+            effects.append(
+                {
+                    "effect_type": "CHAT_MESSAGE",
+                    "conversation_id": conversation_id,
+                    "world_id": world_id,
+                    "round": turn.get("round"),
+                    "role": turn.get("role"),
+                    "user_id": turn.get("user_id"),
+                    "content": turn.get("content"),
+                }
+            )
+        for tool in tool_calls:
+            effects.append(
+                {
+                    "effect_type": "TOOL_CALL",
+                    "world_id": world_id,
+                    "tool_name": tool.get("name"),
+                    "arguments": tool.get("arguments"),
+                }
+            )
+        return effects

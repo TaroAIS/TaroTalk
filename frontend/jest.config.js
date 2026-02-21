@@ -1,7 +1,12 @@
-module.exports = {
-  preset: "ts-jest",
+const nextJest = require("next/jest");
+
+const createJestConfig = nextJest({
+  dir: "./"
+});
+
+const customJestConfig = {
   testEnvironment: "jsdom",
-  setupFilesAfterEnv: ["<rootDir>/jest.setup.ts"],
+  setupFilesAfterEnv: ["<rootDir>/jest.setup.js"],
   moduleNameMapper: {
     "\\.(css|less|scss)$": "identity-obj-proxy"
   },
@@ -16,3 +21,5 @@ module.exports = {
     ]
   }
 };
+
+module.exports = createJestConfig(customJestConfig);

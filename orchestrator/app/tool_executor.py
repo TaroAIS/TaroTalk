@@ -1,11 +1,19 @@
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 import httpx
 from .config import settings
 
 
 class ToolExecutor:
     def __init__(self):
-        self.client = httpx.AsyncClient()
+        timeout = httpx.Timeout(
+            timeout=settings.http_timeout_seconds,
+            connect=settings.http_connect_timeout_seconds
+        )
+        self.client = httpx.AsyncClient(timeout=timeout)
+        self.retry_attempts = max(1, int(settings.http_retry_attempts))
+
+    async def aclose(self) -> None:
+        await self.client.aclose()
 
     async def execute(self, name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
         if name == "send_message":
@@ -24,6 +32,19 @@ class ToolExecutor:
             return await self._create_notification(arguments)
         return {"status": "unknown_tool"}
 
+    async def _request(self, method: str, url: str, **kwargs: Any) -> Dict[str, Any]:
+        last_error: Optional[Exception] = None
+        for _ in range(self.retry_attempts):
+            try:
+                response = await self.client.request(method, url, **kwargs)
+                response.raise_for_status()
+                if response.content:
+                    return response.json()
+                return {"status": "ok"}
+            except Exception as ex:
+                last_error = ex
+        return {"status": "error", "message": str(last_error) if last_error else "request failed"}
+
     async def _send_message(self, args: Dict[str, Any]) -> Dict[str, Any]:
         conversation_id = args["conversation_id"]
         payload = {
@@ -31,24 +52,26 @@ class ToolExecutor:
             "content": args["content"],
             "type": "text",
         }
-        res = await self.client.post(f"{settings.chat_service_url}/api/conversations/{conversation_id}/messages", json=payload)
-        return res.json()
+        return await self._request(
+            "POST",
+            f"{settings.chat_service_url}/api/conversations/{conversation_id}/messages",
+            json=payload
+        )
 
     async def _post_feed(self, args: Dict[str, Any]) -> Dict[str, Any]:
         payload = {
             "authorId": args["author_id"],
             "content": args["content"],
         }
-        res = await self.client.post(f"{settings.feed_service_url}/api/feeds", json=payload)
-        return res.json()
+        return await self._request("POST", f"{settings.feed_service_url}/api/feeds", json=payload)
 
     async def _like_feed(self, args: Dict[str, Any]) -> Dict[str, Any]:
         feed_id = args["feed_id"]
         payload = {
             "userId": args["user_id"],
+            "action": str(args.get("action") or "LIKE").upper(),
         }
-        res = await self.client.post(f"{settings.feed_service_url}/api/feeds/{feed_id}/like", json=payload)
-        return res.json()
+        return await self._request("POST", f"{settings.feed_service_url}/api/v2/feeds/{feed_id}/like", json=payload)
 
     async def _update_relationship(self, args: Dict[str, Any]) -> Dict[str, Any]:
         user_id = args["user_id"]
@@ -59,18 +82,15 @@ class ToolExecutor:
             "interactionCount": args.get("interaction_count", 1),
             "commercialScore": args.get("commercial_score", 0.0),
         }
-        res = await self.client.post(f"{settings.relationship_service_url}/api/relationships/{user_id}", json=payload)
-        return res.json()
+        return await self._request("POST", f"{settings.relationship_service_url}/api/relationships/{user_id}", json=payload)
 
     async def _get_persona(self, args: Dict[str, Any]) -> Dict[str, Any]:
         user_id = args["user_id"]
-        res = await self.client.get(f"{settings.persona_service_url}/api/personas/{user_id}")
-        return res.json()
+        return await self._request("GET", f"{settings.persona_service_url}/api/personas/{user_id}")
 
     async def _get_contacts(self, args: Dict[str, Any]) -> Dict[str, Any]:
         user_id = args["user_id"]
-        res = await self.client.get(f"{settings.contact_service_url}/api/contacts", params={"userId": user_id})
-        return res.json()
+        return await self._request("GET", f"{settings.contact_service_url}/api/contacts", params={"userId": user_id})
 
     async def _create_notification(self, args: Dict[str, Any]) -> Dict[str, Any]:
         payload = {
@@ -79,5 +99,4 @@ class ToolExecutor:
             "title": args["title"],
             "content": args["content"],
         }
-        res = await self.client.post(f"{settings.notification_service_url}/api/notifications", json=payload)
-        return res.json()
+        return await self._request("POST", f"{settings.notification_service_url}/api/notifications", json=payload)

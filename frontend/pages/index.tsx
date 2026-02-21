@@ -1,4 +1,5 @@
 import { useState } from "react";
+import Link from "next/link";
 import Layout from "../components/Layout";
 import { apiPost } from "../lib/api";
 
@@ -50,9 +51,9 @@ export default function Home() {
           <p style={{ color: "var(--color-muted)", marginBottom: 16 }}>
             Describe yourself and let the AI craft your digital identity.
           </p>
-          <a className="btn-secondary" href="/register">
+          <Link className="btn-secondary" href="/register">
             Start onboarding
-          </a>
+          </Link>
         </div>
       </div>
     </Layout>

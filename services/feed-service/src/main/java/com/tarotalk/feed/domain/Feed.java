@@ -7,13 +7,20 @@ import javax.persistence.Entity;
 import javax.persistence.EnumType;
 import javax.persistence.Enumerated;
 import javax.persistence.Id;
+import javax.persistence.Index;
 import javax.persistence.Lob;
 import javax.persistence.Table;
 import java.time.Instant;
 import java.util.UUID;
 
 @Entity
-@Table(name = "feeds")
+@Table(
+        name = "feeds",
+        indexes = {
+                @Index(name = "idx_feed_created_at", columnList = "created_at"),
+                @Index(name = "idx_feed_author_created", columnList = "author_id,created_at")
+        }
+)
 public class Feed {
     public enum Visibility {
         PUBLIC,

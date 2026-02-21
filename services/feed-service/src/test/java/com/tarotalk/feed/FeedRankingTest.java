@@ -83,4 +83,51 @@ public class FeedRankingTest {
         List<FeedResponse> responses = feedService.buildResponses(List.of(feedB, feedA), viewerId);
         assertEquals(authorB, responses.get(0).getAuthorId());
     }
+
+    @Test
+    void rankingUsesNarrativeRelevance() {
+        FeedRepository feedRepository = mock(FeedRepository.class);
+        FeedInteractionRepository interactionRepository = mock(FeedInteractionRepository.class);
+        FeedEventPublisher eventPublisher = mock(FeedEventPublisher.class);
+        RestTemplate restTemplate = mock(RestTemplate.class);
+
+        FeedService feedService = new FeedService(
+                feedRepository,
+                interactionRepository,
+                eventPublisher,
+                restTemplate,
+                "",
+                "",
+                "http://world",
+                "contact",
+                72,
+                200
+        );
+
+        UUID viewerId = UUID.randomUUID();
+        UUID authorA = UUID.randomUUID();
+        UUID authorB = UUID.randomUUID();
+
+        Feed feedA = new Feed(UUID.randomUUID(), authorA, "camping adventure");
+        feedA.setTopics("camping outdoors");
+        Feed feedB = new Feed(UUID.randomUUID(), authorB, "office update");
+        feedB.setTopics("meeting schedule");
+        Instant same = Instant.now().minusSeconds(3600);
+        feedA.setCreatedAt(same);
+        feedB.setCreatedAt(same);
+
+        when(interactionRepository.findByFeedIdIn(anyList())).thenReturn(List.of());
+
+        Map<String, Object> worldRow = new HashMap<>();
+        worldRow.put("actorId", authorA.toString());
+        worldRow.put("eventType", "CAMPING_STORY");
+        worldRow.put("payloadJson", "{\"summary\":\"camping with friends\"}");
+        Map<String, Object> worldResponse = new HashMap<>();
+        worldResponse.put("data", List.of(worldRow));
+        when(restTemplate.getForObject(eq("http://world/api/v2/worlds/" + viewerId + "/timeline?limit=30"), eq(Map.class)))
+                .thenReturn(worldResponse);
+
+        List<FeedResponse> responses = feedService.buildResponses(List.of(feedB, feedA), viewerId);
+        assertEquals(authorA, responses.get(0).getAuthorId());
+    }
 }

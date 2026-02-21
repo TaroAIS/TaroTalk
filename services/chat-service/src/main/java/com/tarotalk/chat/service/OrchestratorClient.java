@@ -25,20 +25,29 @@ public class OrchestratorClient {
                                            String personaSummary,
                                            List<MessageContext> context,
                                            List<java.util.UUID> participants,
-                                           java.util.UUID senderId) {
+                                           java.util.UUID senderId,
+                                           String worldId,
+                                           Integer contextWindow,
+                                           String intent) {
         if (orchestratorUrl == null || orchestratorUrl.trim().isEmpty()) {
             return new OrchestratorReply();
         }
+
         Map<String, Object> payload = new HashMap<>();
         payload.put("conversation_id", conversationId);
         payload.put("participants", participants);
         payload.put("sender_id", senderId == null ? null : senderId.toString());
         payload.put("persona_summary", personaSummary);
         payload.put("messages", context);
-        Map response = restTemplate.postForObject(orchestratorUrl + "/a2a/chat", payload, Map.class);
+        payload.put("world_id", worldId);
+        payload.put("context_window", contextWindow);
+        payload.put("intent", intent);
+
+        Map response = postChat(payload);
         if (response == null) {
             return new OrchestratorReply();
         }
+
         Map<String, Object> body = response;
         if (response.get("data") instanceof Map) {
             body = (Map<String, Object>) response.get("data");
@@ -47,6 +56,26 @@ public class OrchestratorClient {
         OrchestratorReply orchestratorReply = new OrchestratorReply();
         Object reply = body.get("reply");
         orchestratorReply.setReply(reply == null ? "" : String.valueOf(reply));
+        Object traceId = body.get("trace_id");
+        if (traceId != null) {
+            orchestratorReply.setTraceId(String.valueOf(traceId));
+        }
+
+        Object toolCalls = body.get("tool_calls");
+        if (toolCalls instanceof List) {
+            List<Map<String, Object>> parsedToolCalls = new ArrayList<>();
+            for (Object item : (List<?>) toolCalls) {
+                if (!(item instanceof Map)) {
+                    continue;
+                }
+                Map<String, Object> row = new HashMap<>();
+                for (Map.Entry<?, ?> entry : ((Map<?, ?>) item).entrySet()) {
+                    row.put(String.valueOf(entry.getKey()), entry.getValue());
+                }
+                parsedToolCalls.add(row);
+            }
+            orchestratorReply.setToolCalls(parsedToolCalls);
+        }
 
         Object turns = body.get("turns");
         if (turns instanceof List) {
@@ -61,12 +90,14 @@ public class OrchestratorClient {
                 if (round instanceof Number) {
                     turn.setRound(((Number) round).intValue());
                 }
-                Object role = row.containsKey("role") ? row.get("role") : "";
-                turn.setRole(String.valueOf(role));
+                turn.setRole(String.valueOf(row.containsKey("role") ? row.get("role") : ""));
                 Object userId = row.containsKey("user_id") ? row.get("user_id") : row.get("userId");
                 turn.setUserId(String.valueOf(userId == null ? "" : userId));
-                Object content = row.containsKey("content") ? row.get("content") : "";
-                turn.setContent(String.valueOf(content));
+                turn.setContent(String.valueOf(row.containsKey("content") ? row.get("content") : ""));
+                Object effectRef = row.containsKey("effect_ref") ? row.get("effect_ref") : row.get("effectRef");
+                if (effectRef != null) {
+                    turn.setEffectRef(String.valueOf(effectRef));
+                }
                 if (!turn.getContent().isEmpty()) {
                     parsedTurns.add(turn);
                 }
@@ -83,6 +114,44 @@ public class OrchestratorClient {
             orchestratorReply.setRoleUserMap(parsed);
         }
 
+        Object directorTrace = body.get("director_trace");
+        if (directorTrace instanceof Map) {
+            Map<String, Object> parsed = new HashMap<>();
+            for (Map.Entry<?, ?> entry : ((Map<?, ?>) directorTrace).entrySet()) {
+                parsed.put(String.valueOf(entry.getKey()), entry.getValue());
+            }
+            orchestratorReply.setDirectorTrace(parsed);
+        }
+
+        Object stateEffects = body.get("state_effects");
+        if (stateEffects instanceof List) {
+            List<Map<String, Object>> parsed = new ArrayList<>();
+            for (Object item : (List<?>) stateEffects) {
+                if (!(item instanceof Map)) {
+                    continue;
+                }
+                Map<String, Object> row = new HashMap<>();
+                for (Map.Entry<?, ?> entry : ((Map<?, ?>) item).entrySet()) {
+                    row.put(String.valueOf(entry.getKey()), entry.getValue());
+                }
+                parsed.add(row);
+            }
+            orchestratorReply.setStateEffects(parsed);
+        }
+
         return orchestratorReply;
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map postChat(Map<String, Object> payload) {
+        try {
+            return restTemplate.postForObject(orchestratorUrl + "/api/v2/a2a/chat", payload, Map.class);
+        } catch (Exception ex) {
+            try {
+                return restTemplate.postForObject(orchestratorUrl + "/a2a/chat", payload, Map.class);
+            } catch (Exception ignored) {
+                return null;
+            }
+        }
     }
 }

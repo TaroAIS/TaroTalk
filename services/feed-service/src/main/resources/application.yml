@@ -23,15 +23,35 @@ integrations:
     base-url: http://localhost:8082
   notification-service:
     base-url: http://localhost:8087
+  event-service:
+    base-url: http://localhost:8091
   relationship-service:
     base-url: http://localhost:8088
+  world-service:
+    base-url: http://localhost:8092
 
 feed:
   visibility:
-    strategy: contact
+    strategy: hybrid
+  fanout:
+    strategy: hybrid
+    max-recipients: 60
+  ranking:
+    weights:
+      freshness: 0.35
+      interaction-velocity: 0.25
+      relationship-affinity: 0.20
+      narrative-relevance: 0.20
   event:
     ttl-hours: 72
     max-count: 200
+
+http:
+  client:
+    connect-timeout-ms: 3000
+    read-timeout-ms: 5000
+    max-attempts: 3
+    retry-backoff-ms: 150
 
 management:
   endpoints:

@@ -67,7 +67,7 @@ describe("feed page", () => {
         ]
       } as any);
 
-    mockedApiPost.mockResolvedValue({ data: {} } as any);
+    mockedApiPost.mockResolvedValue({ data: { event_id: "evt-1" } } as any);
 
     render(<Feed />);
 
@@ -79,13 +79,13 @@ describe("feed page", () => {
     await userEvent.click(screen.getByRole("button", { name: "Like" }));
 
     await waitFor(() => {
-      expect(mockedApiPost).toHaveBeenCalledWith("/api/feeds/f1/like", { userId: "u-viewer" });
+      expect(mockedApiPost).toHaveBeenCalledWith("/api/v2/feeds/f1/like", { userId: "u-viewer", action: "LIKE" });
     });
 
     await waitFor(() => {
       expect(mockedApiGet).toHaveBeenCalledTimes(2);
     });
 
-    expect(await screen.findByRole("button", { name: "Liked" })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "Unlike" })).toBeInTheDocument();
   });
 });

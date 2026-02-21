@@ -6,6 +6,22 @@ spring:
     name: tarotalk-gateway
   cloud:
     gateway:
+      globalcors:
+        add-to-simple-url-handler-mapping: true
+        corsConfigurations:
+          '[/**]':
+            allowedOrigins:
+              - "http://localhost:3000"
+              - "http://127.0.0.1:3000"
+            allowedMethods:
+              - GET
+              - POST
+              - PUT
+              - PATCH
+              - DELETE
+              - OPTIONS
+            allowedHeaders: "*"
+            allowCredentials: true
       default-filters:
         - DedupeResponseHeader=Access-Control-Allow-Origin Access-Control-Allow-Credentials
       routes:
@@ -24,11 +40,11 @@ spring:
         - id: chat-service
           uri: http://localhost:8084
           predicates:
-            - Path=/api/conversations/**,/api/messages/**,/api/media/**,/ws/**
+            - Path=/api/conversations/**,/api/messages/**,/api/media/**,/ws/**,/api/v2/conversations/**
         - id: feed-service
           uri: http://localhost:8085
           predicates:
-            - Path=/api/feeds/**
+            - Path=/api/feeds/**,/api/v2/feeds/**
         - id: presence-service
           uri: http://localhost:8086
           predicates:
@@ -52,7 +68,20 @@ spring:
         - id: orchestrator
           uri: http://localhost:8077
           predicates:
-            - Path=/api/a2a/**
+            - Path=/api/a2a/**,/api/v2/a2a/**
+        - id: event-service
+          uri: http://localhost:8091
+          predicates:
+            - Path=/api/v2/events/**,/api/v2/traces/**
+        - id: world-service
+          uri: http://localhost:8092
+          predicates:
+            - Path=/api/v2/worlds/**
+
+security:
+  jwt:
+    secret: "dev-secret-change-me-dev-secret-change-me"
+    enforce: false
 
 management:
   endpoints:

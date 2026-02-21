@@ -1,6 +1,7 @@
 # Maven
 /target/
 **/target/
+.m2/
 
 # Gradle
 .gradle/
@@ -9,6 +10,8 @@
 node_modules/
 .next/
 out/
+frontend/test-results/
+frontend/.tmp/
 
 # IDE
 .idea/
@@ -20,3 +23,11 @@ out/
 
 # Logs
 *.log
+
+# Python
+.venv/
+**/__pycache__/
+.pytest_cache/
+
+# Local temp
+.tmp/

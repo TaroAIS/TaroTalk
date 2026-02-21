@@ -30,12 +30,17 @@ def tool_registry() -> List[Dict[str, Any]]:
         },
         {
             "name": "like_feed",
-            "description": "Like a feed item",
+            "description": "Toggle like state for a feed item",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "feed_id": {"type": "string"},
-                    "user_id": {"type": "string"}
+                    "user_id": {"type": "string"},
+                    "action": {
+                        "type": "string",
+                        "enum": ["LIKE", "UNLIKE"],
+                        "description": "LIKE to like the feed, UNLIKE to cancel like"
+                    }
                 },
                 "required": ["feed_id", "user_id"]
             }

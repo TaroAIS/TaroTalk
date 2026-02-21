@@ -5,12 +5,19 @@ import javax.persistence.Entity;
 import javax.persistence.EnumType;
 import javax.persistence.Enumerated;
 import javax.persistence.Id;
+import javax.persistence.Index;
 import javax.persistence.Table;
 import java.time.Instant;
 import java.util.UUID;
 
 @Entity
-@Table(name = "feed_interactions")
+@Table(
+        name = "feed_interactions",
+        indexes = {
+                @Index(name = "idx_feed_interaction_feed_created", columnList = "feed_id,created_at"),
+                @Index(name = "idx_feed_interaction_user_type_created", columnList = "user_id,type,created_at")
+        }
+)
 public class FeedInteraction {
     public enum Type {
         LIKE,

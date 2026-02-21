@@ -21,6 +21,8 @@
         <module>services/notification-service</module>
         <module>services/relationship-service</module>
         <module>services/scheduler-service</module>
+        <module>services/event-service</module>
+        <module>services/world-service</module>
     </modules>
 
     <properties>

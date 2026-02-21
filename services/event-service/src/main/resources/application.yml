@@ -1,0 +1,30 @@
+server:
+  port: 8091
+
+spring:
+  application:
+    name: tarotalk-event-service
+  datasource:
+    url: jdbc:h2:mem:eventdb;DB_CLOSE_DELAY=-1
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+    properties:
+      hibernate:
+        type:
+          preferred_uuid_jdbc_type: CHAR
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+
+logging:
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%property{spring.application.name}] [%X{traceId}] [%X{userId}] %logger{36} - %msg%n"

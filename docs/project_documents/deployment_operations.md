@@ -99,3 +99,8 @@
 - world-service 的 `agent_goal` 表新增经济字段（JPA 自动变更）。
 - orchestrator 对 `world-service` 新增一次读依赖：`/api/v2/worlds/{worldId}/goals/economy`。
 - 若 world-service 不可用，orchestrator 自动回退到关系权重路径（goal utility 为 0）。
+
+## P18 Ops Note (2026-02-21)
+- orchestrator 新增本地安全审计模块，无新增外部基础设施依赖。
+- 安全阻断事件通过 `safety_report` 暴露，建议在日志与监控中按 `action=SAFETY_BLOCKED` 聚合告警。
+- 默认策略是规则内置版本，后续可升级为配置化策略下发。

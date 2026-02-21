@@ -416,3 +416,8 @@ TaroTalk 的核心价值在于：将“生成式能力”从演示级 prompt 效
 - Goal economy utility is computed from score/priority/reward/momentum/risk/budget factors.
 - Budget exhaustion introduces explicit utility deweight behavior.
 - Orchestrator role binding now persists weight factors (`relation_weight`, `goal_utility`, `recency_factor`) for explainability.
+
+## P18 Engineering Notes (2026-02-21)
+- Safety linter audits tool-call arguments before executor invocation.
+- State effects are re-linted before final response return and can be filtered on hard violations.
+- Safety findings are promoted to both top-level `safety_report` and `director_trace.safety_report`.

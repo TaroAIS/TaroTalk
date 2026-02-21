@@ -31,3 +31,8 @@
 - Design goal: move speaker choice from short-term relationship bias to utility-driven long-term behavior.
 - Design strategy: world-service computes goal utility; orchestrator consumes utility in binding weights.
 - Tradeoff: utility model is deterministic and interpretable, but not yet learned from live outcomes.
+
+## P18 Narrative Safety Linter
+- Design goal: stop unsafe narrative effects before they become committed behavior.
+- Design strategy: hard-block + soft-warning dual policy, with trace-attached safety evidence.
+- Tradeoff: strict rules reduce risk but may block aggressive creative outputs; policy tuning is required.

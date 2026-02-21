@@ -330,6 +330,85 @@ def test_goal_economy_changes_speaker_weight(monkeypatch):
     assert binding_map["u3"]["weight"] > binding_map["u2"]["weight"]
 
 
+def test_safety_linter_blocks_illegal_relationship_tool(monkeypatch):
+    calls = {"count": 0, "executed": 0}
+
+    def fake_completion(messages, tools=None, tool_choice=None):
+        calls["count"] += 1
+        if calls["count"] == 1:
+            return {
+                "choices": [
+                    {
+                        "message": {
+                            "tool_calls": [
+                                {
+                                    "id": "tc-1",
+                                    "function": {
+                                        "name": "update_relationship",
+                                        "arguments": "{\"user_id\":\"u1\",\"target_id\":\"u2\",\"type\":\"friend;drop table\"}",
+                                    },
+                                }
+                            ]
+                        }
+                    }
+                ]
+            }
+        return {"choices": [{"message": {"content": "[self-agent] hello"}}]}
+
+    class DummyExecutor:
+        async def execute(self, name, arguments):
+            calls["executed"] += 1
+            return {"ok": True}
+
+    async def fake_load_relationship_map(sender_id):
+        return {"u2": {"targetId": "u2", "type": "friend", "intimacyScore": 0.7, "interactionCount": 4, "commercialScore": 0.0}}
+
+    async def fake_load_memories(role_map, world_id=None):
+        return {}
+
+    monkeypatch.setattr(orch_module, "run_completion", fake_completion)
+    engine = OrchestratorEngine(max_steps=2, max_tool_calls=1)
+    engine.executor = DummyExecutor()
+    monkeypatch.setattr(engine, "_load_relationship_map", fake_load_relationship_map)
+    monkeypatch.setattr(engine, "_load_memories", fake_load_memories)
+
+    result = asyncio.get_event_loop().run_until_complete(
+        engine.run_chat([{"role": "user", "content": "hi"}], "persona", ["u1", "u2"], "u1", rounds=1, world_id="w1")
+    )
+
+    assert calls["executed"] == 0
+    assert result["tool_calls"] == []
+    assert any(item.get("action") == "SAFETY_BLOCKED" for item in result.get("safety_report", []))
+    assert any(item.get("rule") == "RELATIONSHIP_TYPE_WHITELIST" for item in result.get("safety_report", []))
+
+
+def test_safety_linter_warns_on_long_state_effect_content(monkeypatch):
+    long_message = "x" * 900
+
+    def fake_completion(messages, tools=None, tool_choice=None):
+        return {"choices": [{"message": {"content": f"[self-agent] {long_message}"}}]}
+
+    async def fake_load_relationship_map(sender_id):
+        return {}
+
+    async def fake_load_memories(role_map, world_id=None):
+        return {}
+
+    monkeypatch.setattr(orch_module, "run_completion", fake_completion)
+    engine = OrchestratorEngine(max_steps=1, max_tool_calls=1)
+    monkeypatch.setattr(engine, "_load_relationship_map", fake_load_relationship_map)
+    monkeypatch.setattr(engine, "_load_memories", fake_load_memories)
+
+    result = asyncio.get_event_loop().run_until_complete(
+        engine.run_chat([{"role": "user", "content": "hello"}], "persona", ["u1"], "u1", rounds=1, world_id="w1")
+    )
+
+    assert len(result["state_effects"]) == 1
+    assert any(item.get("action") == "SOFT_WARNING" for item in result.get("safety_report", []))
+    assert any(item.get("rule") == "CONTENT_LENGTH_HIGH" for item in result.get("safety_report", []))
+    assert len(result["director_trace"].get("safety_report", [])) >= 1
+
+
 class DummyAsyncClientContext:
     def __init__(self, client):
         self.client = client

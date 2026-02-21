@@ -11,6 +11,7 @@ from .tools import tool_registry
 from .tool_executor import ToolExecutor
 from .director import pick_round_speakers, role_style
 from .drift_guard import DriftGuard
+from .safety_linter import SafetyLinter
 from .config import settings
 
 ROLE_CANDIDATES = ["friend", "mentor", "rival", "advertiser"]
@@ -23,6 +24,7 @@ class OrchestratorEngine:
         self.tools = tool_registry()
         self.executor = ToolExecutor()
         self.drift_guard = DriftGuard()
+        self.safety_linter = SafetyLinter()
 
     async def run_chat(
         self,
@@ -47,6 +49,7 @@ class OrchestratorEngine:
         turns: List[Dict[str, Any]] = []
         director_rounds: List[Dict[str, Any]] = []
         drift_decisions: List[Dict[str, Any]] = []
+        safety_report: List[Dict[str, Any]] = []
         recent_turns_by_role: Dict[str, List[str]] = {}
         bindings = await self._build_role_bindings(sender_id, participants or [], world_id)
         role_map = {item["role"]: item["user_id"] for item in bindings}
@@ -79,6 +82,7 @@ class OrchestratorEngine:
                 ],
                 "tool_calls": [],
                 "drift_decisions": [],
+                "safety_report": [],
             }
 
             for _ in range(self.max_steps):
@@ -93,6 +97,15 @@ class OrchestratorEngine:
                             args = json.loads(raw_args) if isinstance(raw_args, str) else raw_args
                         except json.JSONDecodeError:
                             args = {}
+                        tool_safety = self.safety_linter.lint_tool_call(name, args, world_id)
+                        for report in tool_safety:
+                            report["round"] = round_index + 1
+                            report["tool_name"] = name
+                        safety_report.extend(tool_safety)
+                        round_trace["safety_report"].extend(tool_safety)
+                        blocked = any(report.get("action") == SafetyLinter.HARD_BLOCK for report in tool_safety)
+                        if blocked:
+                            continue
                         output = await self.executor.execute(name, args)
                         tool_record = {"name": name, "arguments": args}
                         tool_calls_collected.append(tool_record)
@@ -143,6 +156,10 @@ class OrchestratorEngine:
 
             director_rounds.append(round_trace)
 
+        state_effects = self._build_state_effects(turns, tool_calls_collected, conversation_id, world_id)
+        safe_effects, effect_safety = self.safety_linter.filter_state_effects(state_effects, world_id)
+        safety_report.extend(effect_safety)
+
         return {
             "reply": "\n".join(replies),
             "tool_calls": tool_calls_collected,
@@ -154,8 +171,10 @@ class OrchestratorEngine:
                 "bindings": bindings,
                 "rounds": director_rounds,
                 "drift_decisions": drift_decisions,
+                "safety_report": safety_report,
             },
-            "state_effects": self._build_state_effects(turns, tool_calls_collected, conversation_id, world_id),
+            "state_effects": safe_effects,
+            "safety_report": safety_report,
         }
 
     async def run_simulation(

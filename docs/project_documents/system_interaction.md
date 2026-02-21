@@ -93,3 +93,9 @@
 2. world-service computes utility per agent goal and returns ranked entries.
 3. Orchestrator builds speaker bindings with `relation_weight + goal_utility + recency_factor`.
 4. Director round speaker selection consumes updated binding weights.
+
+## P18 Interaction Flow (2026-02-21)
+1. LLM proposes tool calls and turn/state outputs.
+2. Safety linter validates tool args before execution (hard violation blocks execution).
+3. Safety linter validates final `state_effects` before response return.
+4. `safety_report` is attached to trace context for explain/replay consumption.

@@ -37,6 +37,7 @@ class A2AChatResponse(BaseModel):
     role_user_map: Dict[str, str] = Field(default_factory=dict)
     director_trace: Dict[str, Any] = Field(default_factory=dict)
     state_effects: List[Dict[str, Any]] = Field(default_factory=list)
+    safety_report: List[Dict[str, Any]] = Field(default_factory=list)
     trace_id: Optional[str] = None
 
 

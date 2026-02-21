@@ -137,6 +137,11 @@ async def run_chat(request: A2AChatRequest) -> A2AChatResponse:
         for effect in state_effects:
             if isinstance(effect, dict):
                 effect["trace_id"] = trace_id
+    safety_report = result.get("safety_report", [])
+    if isinstance(safety_report, list):
+        for item in safety_report:
+            if isinstance(item, dict):
+                item["trace_id"] = trace_id
     reply = result.get("reply", "")
     if (not reply) and result.get("turns"):
         reply = "\n".join([str(turn.get("content", "")) for turn in result.get("turns", []) if isinstance(turn, dict)])
@@ -147,6 +152,7 @@ async def run_chat(request: A2AChatRequest) -> A2AChatResponse:
         role_user_map=result.get("role_user_map", {}),
         director_trace=director_trace if isinstance(director_trace, dict) else {},
         state_effects=state_effects if isinstance(state_effects, list) else [],
+        safety_report=safety_report if isinstance(safety_report, list) else [],
         trace_id=trace_id,
     )
 

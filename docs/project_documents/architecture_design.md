@@ -91,3 +91,8 @@
 - Added world goal economy model fields (`budget`, `expected_reward`, `risk_penalty`, `momentum`).
 - Added world goal economy query/evaluate APIs for utility introspection.
 - Orchestrator speaker scoring now mixes relationship, goal utility, and recency factors.
+
+## P18 Narrative Safety Update (2026-02-21)
+- Added orchestrator `SafetyLinter` as pre-execution and pre-output governance layer.
+- Added hard-block and soft-warning policy channels with structured safety evidence.
+- Added `safety_report` to chat response and director trace for replay diagnostics.

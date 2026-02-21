@@ -161,3 +161,9 @@ GraphQL 通过单一端点 `/graphql`，支持查询（Query）、变更（Mutat
 - `POST /api/v2/worlds/{worldId}/goals/evaluate`
   - Request: `actorIds[]`, `objective`.
   - Response: evaluated goal utilities ordered by utility score.
+
+## P18 Protocol Additions (2026-02-21)
+- `POST /api/v2/a2a/chat` response now includes:
+  - `safety_report[]` (rule, severity, action, reason, metadata, trace_id)
+- `director_trace` now includes:
+  - `safety_report[]` for round/global safety decisions.

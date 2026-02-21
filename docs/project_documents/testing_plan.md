@@ -84,3 +84,9 @@
   - goal economy budget exhaustion deweight test.
 - orchestrator:
   - goal utility injection changes role binding weight test.
+
+## P18 Test Additions (2026-02-21)
+- orchestrator:
+  - illegal relationship type hard-block test.
+  - long content soft-warning and non-blocking test.
+  - safety report propagation to director trace test.

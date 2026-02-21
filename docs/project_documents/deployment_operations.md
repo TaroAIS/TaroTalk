@@ -72,3 +72,7 @@
   - `http.client.read-timeout-ms`
   - `http.client.max-attempts`
   - `http.client.retry-backoff-ms`
+
+## P12 Ops Note (2026-02-21)
+- No new external infra required for causal edge MVP.
+- Causal edge table is managed by JPA schema auto-update in current local profile.

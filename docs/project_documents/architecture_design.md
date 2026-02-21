@@ -61,3 +61,8 @@
 - Added world memory domain (`memory_item`) in world-service.
 - Introduced compile/list APIs to persist durable social memories from world events and event logs.
 - Orchestrator now reads world memories first, then falls back to notification memories.
+
+## P12 Causal Story Graph Update (2026-02-21)
+- Added world causal edge persistence (`world_causal_edge`).
+- Introduced explicit causal graph build/query APIs under world V2.
+- Trace aggregate replay now exposes causal edge sequence for debugging and story explanation.

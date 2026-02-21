@@ -52,3 +52,7 @@
   - world memory priority and fallback test.
 - auth-service:
   - controller test isolated from external user-service dependency.
+
+## P12 Test Additions (2026-02-21)
+- world-service causal graph build test.
+- event-service replay aggregate causal edge schema test.

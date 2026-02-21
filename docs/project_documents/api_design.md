@@ -127,3 +127,8 @@ GraphQL 通过单一端点 `/graphql`，支持查询（Query）、变更（Mutat
 - `GET /api/v2/worlds/{worldId}/memories`
   - Optional query: `ownerId`, `limit`, `minSalience`.
   - Returns active memory list ordered by salience.
+
+## P12 API Additions (2026-02-21)
+- `POST /api/v2/worlds/{worldId}/causal/build?traceId=`
+- `GET /api/v2/worlds/{worldId}/causal?rootEventId=&depth=`
+- `GET /api/v2/traces/{traceId}/replay/aggregate` now includes `causal_edges`.

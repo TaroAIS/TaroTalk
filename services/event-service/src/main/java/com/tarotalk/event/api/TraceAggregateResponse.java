@@ -9,6 +9,7 @@ public class TraceAggregateResponse {
     private List<EventResponse> events;
     private Map<String, Long> eventTypeCounts = new HashMap<>();
     private Map<String, Long> sourceServiceCounts = new HashMap<>();
+    private List<Map<String, Object>> causalEdges = new java.util.ArrayList<>();
 
     public TraceAggregateResponse(String traceId, List<EventResponse> events) {
         this.traceId = traceId;
@@ -37,6 +38,14 @@ public class TraceAggregateResponse {
 
     public void setSourceServiceCounts(Map<String, Long> sourceServiceCounts) {
         this.sourceServiceCounts = sourceServiceCounts;
+    }
+
+    public List<Map<String, Object>> getCausalEdges() {
+        return causalEdges;
+    }
+
+    public void setCausalEdges(List<Map<String, Object>> causalEdges) {
+        this.causalEdges = causalEdges;
     }
 }
 

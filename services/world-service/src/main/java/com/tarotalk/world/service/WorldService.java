@@ -7,11 +7,13 @@ import com.tarotalk.world.api.WorldEventRequest;
 import com.tarotalk.world.domain.AgentGoal;
 import com.tarotalk.world.domain.MemoryItem;
 import com.tarotalk.world.domain.StoryArc;
+import com.tarotalk.world.domain.WorldCausalEdge;
 import com.tarotalk.world.domain.WorldEvent;
 import com.tarotalk.world.domain.WorldState;
 import com.tarotalk.world.repo.AgentGoalRepository;
 import com.tarotalk.world.repo.MemoryItemRepository;
 import com.tarotalk.world.repo.StoryArcRepository;
+import com.tarotalk.world.repo.WorldCausalEdgeRepository;
 import com.tarotalk.world.repo.WorldEventRepository;
 import com.tarotalk.world.repo.WorldStateRepository;
 import org.springframework.beans.factory.annotation.Value;
@@ -26,10 +28,12 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 @Service
@@ -42,6 +46,7 @@ public class WorldService {
     private final StoryArcRepository storyArcRepository;
     private final AgentGoalRepository agentGoalRepository;
     private final MemoryItemRepository memoryItemRepository;
+    private final WorldCausalEdgeRepository worldCausalEdgeRepository;
     private final ObjectMapper objectMapper;
     private final RestTemplate restTemplate;
     private final String eventServiceUrl;
@@ -51,6 +56,7 @@ public class WorldService {
                         StoryArcRepository storyArcRepository,
                         AgentGoalRepository agentGoalRepository,
                         MemoryItemRepository memoryItemRepository,
+                        WorldCausalEdgeRepository worldCausalEdgeRepository,
                         ObjectMapper objectMapper,
                         RestTemplate restTemplate,
                         @Value("${integrations.event-service.base-url:}") String eventServiceUrl) {
@@ -59,6 +65,7 @@ public class WorldService {
         this.storyArcRepository = storyArcRepository;
         this.agentGoalRepository = agentGoalRepository;
         this.memoryItemRepository = memoryItemRepository;
+        this.worldCausalEdgeRepository = worldCausalEdgeRepository;
         this.objectMapper = objectMapper;
         this.restTemplate = restTemplate;
         this.eventServiceUrl = eventServiceUrl;
@@ -69,12 +76,14 @@ public class WorldService {
                         StoryArcRepository storyArcRepository,
                         AgentGoalRepository agentGoalRepository,
                         MemoryItemRepository memoryItemRepository,
+                        WorldCausalEdgeRepository worldCausalEdgeRepository,
                         ObjectMapper objectMapper) {
         this(worldStateRepository,
                 worldEventRepository,
                 storyArcRepository,
                 agentGoalRepository,
                 memoryItemRepository,
+                worldCausalEdgeRepository,
                 objectMapper,
                 null,
                 "");
@@ -144,6 +153,103 @@ public class WorldService {
         state.setUpdatedAt(Instant.now());
         worldStateRepository.save(state);
         return savedGoals;
+    }
+
+    public List<WorldCausalEdge> buildCausalGraph(UUID worldId, String traceId) {
+        String cleanedTrace = clean(traceId);
+        List<WorldEvent> events;
+        if (cleanedTrace != null) {
+            events = worldEventRepository.findByWorldIdAndTraceIdOrderByCreatedAtAsc(worldId, cleanedTrace);
+        } else {
+            List<WorldEvent> latest = worldEventRepository.findByWorldIdOrderByCreatedAtDesc(worldId, PageRequest.of(0, 100));
+            events = new ArrayList<>(latest);
+            events.sort(new Comparator<WorldEvent>() {
+                @Override
+                public int compare(WorldEvent left, WorldEvent right) {
+                    Instant leftCreated = left.getCreatedAt() == null ? Instant.EPOCH : left.getCreatedAt();
+                    Instant rightCreated = right.getCreatedAt() == null ? Instant.EPOCH : right.getCreatedAt();
+                    return leftCreated.compareTo(rightCreated);
+                }
+            });
+        }
+
+        if (events.size() < 2) {
+            return new ArrayList<>();
+        }
+
+        List<WorldCausalEdge> built = new ArrayList<>();
+        for (int i = 0; i < events.size() - 1; i++) {
+            WorldEvent cause = events.get(i);
+            WorldEvent effect = events.get(i + 1);
+            if (cause.getEventId() == null || effect.getEventId() == null) {
+                continue;
+            }
+            String causeEventId = cause.getEventId().toString();
+            String effectEventId = effect.getEventId().toString();
+            String relationType = "STATE_EFFECT";
+            Optional<WorldCausalEdge> existing = worldCausalEdgeRepository
+                    .findFirstByWorldIdAndCauseEventIdAndEffectEventIdAndRelationType(
+                            worldId,
+                            causeEventId,
+                            effectEventId,
+                            relationType
+                    );
+            if (existing.isPresent()) {
+                built.add(existing.get());
+                continue;
+            }
+            double confidence = 0.65;
+            if (cause.getActorId() != null && cause.getActorId().equals(effect.getActorId())) {
+                confidence += 0.15;
+            }
+            WorldCausalEdge edge = new WorldCausalEdge(
+                    UUID.randomUUID(),
+                    worldId,
+                    causeEventId,
+                    effectEventId,
+                    relationType,
+                    clamp01(confidence),
+                    cleanedTrace == null ? safe(effect.getTraceId()) : cleanedTrace
+            );
+            edge.setCreatedAt(Instant.now());
+            built.add(worldCausalEdgeRepository.save(edge));
+        }
+        return built;
+    }
+
+    public List<WorldCausalEdge> listCausalEdges(UUID worldId, String rootEventId, Integer depth) {
+        String root = clean(rootEventId);
+        if (root == null) {
+            return worldCausalEdgeRepository.findByWorldIdOrderByCreatedAtDesc(worldId, PageRequest.of(0, 100));
+        }
+        int maxDepth = resolveDepth(depth);
+        Set<String> frontier = new LinkedHashSet<>();
+        Set<String> visited = new LinkedHashSet<>();
+        frontier.add(root);
+        List<WorldCausalEdge> rows = new ArrayList<>();
+
+        for (int level = 0; level < maxDepth; level++) {
+            if (frontier.isEmpty()) {
+                break;
+            }
+            Set<String> nextFrontier = new LinkedHashSet<>();
+            for (String causeEventId : frontier) {
+                if (causeEventId == null || visited.contains(causeEventId)) {
+                    continue;
+                }
+                visited.add(causeEventId);
+                List<WorldCausalEdge> edges = worldCausalEdgeRepository
+                        .findByWorldIdAndCauseEventIdOrderByCreatedAtAsc(worldId, causeEventId);
+                for (WorldCausalEdge edge : edges) {
+                    rows.add(edge);
+                    if (edge.getEffectEventId() != null && !visited.contains(edge.getEffectEventId())) {
+                        nextFrontier.add(edge.getEffectEventId());
+                    }
+                }
+            }
+            frontier = nextFrontier;
+        }
+        return rows;
     }
 
     public MemoryCompileResult compileMemories(UUID worldId, String ownerId, Integer limit, Double minSalience) {
@@ -427,6 +533,13 @@ public class WorldService {
             return 20;
         }
         return Math.min(limit, 120);
+    }
+
+    private int resolveDepth(Integer depth) {
+        if (depth == null || depth <= 0) {
+            return 2;
+        }
+        return Math.min(depth, 5);
     }
 
     private double normalizeMinSalience(Double value) {

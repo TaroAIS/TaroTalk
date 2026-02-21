@@ -9,4 +9,6 @@ import java.util.UUID;
 
 public interface WorldEventRepository extends JpaRepository<WorldEvent, UUID> {
     List<WorldEvent> findByWorldIdOrderByCreatedAtDesc(UUID worldId, Pageable pageable);
+
+    List<WorldEvent> findByWorldIdAndTraceIdOrderByCreatedAtAsc(UUID worldId, String traceId);
 }

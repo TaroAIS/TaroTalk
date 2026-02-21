@@ -75,6 +75,26 @@ public class EventController {
         }
         response.setEventTypeCounts(eventTypeCounts);
         response.setSourceServiceCounts(sourceServiceCounts);
+        response.setCausalEdges(buildCausalEdges(traceId, rows));
         return ApiResponse.ok(response);
+    }
+
+    private List<Map<String, Object>> buildCausalEdges(String traceId, List<EventResponse> rows) {
+        List<Map<String, Object>> edges = new java.util.ArrayList<>();
+        if (rows == null || rows.size() < 2) {
+            return edges;
+        }
+        for (int index = 0; index < rows.size() - 1; index++) {
+            EventResponse cause = rows.get(index);
+            EventResponse effect = rows.get(index + 1);
+            Map<String, Object> edge = new HashMap<>();
+            edge.put("trace_id", traceId);
+            edge.put("cause_event_id", cause.getEventId() == null ? null : cause.getEventId().toString());
+            edge.put("effect_event_id", effect.getEventId() == null ? null : effect.getEventId().toString());
+            edge.put("relation_type", "TRACE_SEQUENCE");
+            edge.put("confidence", 0.6);
+            edges.add(edge);
+        }
+        return edges;
     }
 }

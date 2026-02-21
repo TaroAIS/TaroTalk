@@ -3,6 +3,7 @@ package com.tarotalk.world.api;
 import com.tarotalk.common.api.ApiResponse;
 import com.tarotalk.world.domain.AgentGoal;
 import com.tarotalk.world.domain.MemoryItem;
+import com.tarotalk.world.domain.WorldCausalEdge;
 import com.tarotalk.world.domain.WorldEvent;
 import com.tarotalk.world.service.WorldService;
 import org.springframework.validation.annotation.Validated;
@@ -85,5 +86,20 @@ public class WorldController {
                                                               @RequestParam(required = false) Double minSalience) {
         List<MemoryItem> memories = worldService.listMemories(worldId, ownerId, limit, minSalience);
         return ApiResponse.ok(memories.stream().map(MemoryItemResponse::from).collect(Collectors.toList()));
+    }
+
+    @PostMapping("/{worldId}/causal/build")
+    public ApiResponse<List<CausalEdgeResponse>> buildCausalEdges(@PathVariable UUID worldId,
+                                                                  @RequestParam(required = false) String traceId) {
+        List<WorldCausalEdge> edges = worldService.buildCausalGraph(worldId, traceId);
+        return ApiResponse.ok(edges.stream().map(CausalEdgeResponse::from).collect(Collectors.toList()));
+    }
+
+    @GetMapping("/{worldId}/causal")
+    public ApiResponse<List<CausalEdgeResponse>> listCausalEdges(@PathVariable UUID worldId,
+                                                                 @RequestParam(required = false) String rootEventId,
+                                                                 @RequestParam(required = false) Integer depth) {
+        List<WorldCausalEdge> edges = worldService.listCausalEdges(worldId, rootEventId, depth);
+        return ApiResponse.ok(edges.stream().map(CausalEdgeResponse::from).collect(Collectors.toList()));
     }
 }

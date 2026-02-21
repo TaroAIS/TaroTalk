@@ -386,3 +386,8 @@ TaroTalk 的核心价值在于：将“生成式能力”从演示级 prompt 效
 - Dedupe key: `world_id + owner_id + source_event_id + summary_hash`.
 - Salience decay is applied on read/compile path; expired rows are filtered.
 - Auth test baseline hardened by mocking `UserProfileClient` to avoid external dependency in gate runs.
+
+## P12 Engineering Notes (2026-02-21)
+- Causal edge relation is generated from event order with dedupe checks.
+- `traceId` can constrain edge building to a single trace context.
+- Replay aggregate edge output is currently sequence-based for deterministic output.

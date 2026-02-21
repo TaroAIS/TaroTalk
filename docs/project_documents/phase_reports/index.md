@@ -18,6 +18,7 @@
 | P9 | completed | p9_report.md | p9_optimization.md | 超时重试参数化、索引增强、调度退避、编排工具韧性 | 2026-02-21 |
 | P10 | completed | p10_release_report.md | p10_optimization.md | 发布就绪基线、上线/回滚 runbook | 2026-02-21 |
 | P11 | completed | p11_report.md | p11_optimization.md | 记忆编译器（world memories）、编排层优先记忆读取与回退 | 2026-02-21 |
+| P12 | completed | p12_report.md | p12_optimization.md | 因果剧情图（world causal edges）与 replay 聚合增强 | 2026-02-21 |
 
 ## 交付附件
 - `p10_release_runbook.md`

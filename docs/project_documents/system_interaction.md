@@ -58,3 +58,8 @@
 2. world-service compiles memory items from `world_event` and `event_log` data.
 3. Orchestrator chat reads `GET /api/v2/worlds/{worldId}/memories?ownerId=...` first.
 4. If world memory is empty/unavailable, orchestrator falls back to notification feed memories.
+
+## P12 Interaction Flow (2026-02-21)
+1. world-service receives build request for causal graph.
+2. service links adjacent world events into `STATE_EFFECT` edges.
+3. trace replay aggregate emits `causal_edges` for UI/ops diagnosis.

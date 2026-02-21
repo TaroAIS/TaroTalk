@@ -4,11 +4,13 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tarotalk.world.api.WorldEventRequest;
 import com.tarotalk.world.domain.MemoryItem;
 import com.tarotalk.world.domain.StoryArc;
+import com.tarotalk.world.domain.WorldCausalEdge;
 import com.tarotalk.world.domain.WorldEvent;
 import com.tarotalk.world.domain.WorldState;
 import com.tarotalk.world.repo.AgentGoalRepository;
 import com.tarotalk.world.repo.MemoryItemRepository;
 import com.tarotalk.world.repo.StoryArcRepository;
+import com.tarotalk.world.repo.WorldCausalEdgeRepository;
 import com.tarotalk.world.repo.WorldEventRepository;
 import com.tarotalk.world.repo.WorldStateRepository;
 import com.tarotalk.world.service.WorldService;
@@ -36,6 +38,7 @@ public class WorldServiceTest {
         StoryArcRepository storyArcRepository = mock(StoryArcRepository.class);
         AgentGoalRepository agentGoalRepository = mock(AgentGoalRepository.class);
         MemoryItemRepository memoryItemRepository = mock(MemoryItemRepository.class);
+        WorldCausalEdgeRepository worldCausalEdgeRepository = mock(WorldCausalEdgeRepository.class);
 
         WorldService service = new WorldService(
                 worldStateRepository,
@@ -43,6 +46,7 @@ public class WorldServiceTest {
                 storyArcRepository,
                 agentGoalRepository,
                 memoryItemRepository,
+                worldCausalEdgeRepository,
                 new ObjectMapper()
         );
 
@@ -74,6 +78,7 @@ public class WorldServiceTest {
         StoryArcRepository storyArcRepository = mock(StoryArcRepository.class);
         AgentGoalRepository agentGoalRepository = mock(AgentGoalRepository.class);
         MemoryItemRepository memoryItemRepository = mock(MemoryItemRepository.class);
+        WorldCausalEdgeRepository worldCausalEdgeRepository = mock(WorldCausalEdgeRepository.class);
 
         WorldService service = new WorldService(
                 worldStateRepository,
@@ -81,6 +86,7 @@ public class WorldServiceTest {
                 storyArcRepository,
                 agentGoalRepository,
                 memoryItemRepository,
+                worldCausalEdgeRepository,
                 new ObjectMapper()
         );
 
@@ -144,6 +150,7 @@ public class WorldServiceTest {
         StoryArcRepository storyArcRepository = mock(StoryArcRepository.class);
         AgentGoalRepository agentGoalRepository = mock(AgentGoalRepository.class);
         MemoryItemRepository memoryItemRepository = mock(MemoryItemRepository.class);
+        WorldCausalEdgeRepository worldCausalEdgeRepository = mock(WorldCausalEdgeRepository.class);
 
         WorldService service = new WorldService(
                 worldStateRepository,
@@ -151,6 +158,7 @@ public class WorldServiceTest {
                 storyArcRepository,
                 agentGoalRepository,
                 memoryItemRepository,
+                worldCausalEdgeRepository,
                 new ObjectMapper()
         );
 
@@ -176,6 +184,45 @@ public class WorldServiceTest {
         List<MemoryItem> rows = service.listMemories(worldId, null, 10, 0.05);
         assertEquals(1, rows.size());
         assertTrue(rows.get(0).getSummary().contains("still useful"));
+    }
+
+    @Test
+    void buildCausalGraphCreatesEdgesWithinSameTrace() {
+        WorldStateRepository worldStateRepository = mock(WorldStateRepository.class);
+        WorldEventRepository worldEventRepository = mock(WorldEventRepository.class);
+        StoryArcRepository storyArcRepository = mock(StoryArcRepository.class);
+        AgentGoalRepository agentGoalRepository = mock(AgentGoalRepository.class);
+        MemoryItemRepository memoryItemRepository = mock(MemoryItemRepository.class);
+        WorldCausalEdgeRepository worldCausalEdgeRepository = mock(WorldCausalEdgeRepository.class);
+
+        WorldService service = new WorldService(
+                worldStateRepository,
+                worldEventRepository,
+                storyArcRepository,
+                agentGoalRepository,
+                memoryItemRepository,
+                worldCausalEdgeRepository,
+                new ObjectMapper()
+        );
+
+        UUID worldId = UUID.randomUUID();
+        WorldEvent e1 = new WorldEvent(UUID.randomUUID(), worldId, "E1");
+        e1.setActorId("u1");
+        e1.setTraceId("trace-1");
+        WorldEvent e2 = new WorldEvent(UUID.randomUUID(), worldId, "E2");
+        e2.setActorId("u1");
+        e2.setTraceId("trace-1");
+        when(worldEventRepository.findByWorldIdAndTraceIdOrderByCreatedAtAsc(worldId, "trace-1"))
+                .thenReturn(java.util.Arrays.asList(e1, e2));
+        when(worldCausalEdgeRepository.findFirstByWorldIdAndCauseEventIdAndEffectEventIdAndRelationType(
+                eq(worldId), any(String.class), any(String.class), eq("STATE_EFFECT")))
+                .thenReturn(Optional.empty());
+        when(worldCausalEdgeRepository.save(any(WorldCausalEdge.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        List<WorldCausalEdge> edges = service.buildCausalGraph(worldId, "trace-1");
+        assertEquals(1, edges.size());
+        assertEquals(e1.getEventId().toString(), edges.get(0).getCauseEventId());
+        assertEquals(e2.getEventId().toString(), edges.get(0).getEffectEventId());
     }
 }
 

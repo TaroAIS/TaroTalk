@@ -140,3 +140,11 @@ GraphQL 通过单一端点 `/graphql`，支持查询（Query）、变更（Mutat
 
 ## P14 Protocol Additions (2026-02-21)
 - `director_trace` now carries `drift_decisions[]` in orchestrator chat response.
+
+## P15 API/Schema Notes (2026-02-21)
+- No public API break for feed list/read path.
+- New internal persistence schema:
+  - `feed_ranking_decision(decision_id, viewer_id, feed_id, policy, context_json, score, chosen, reward, trace_id, created_at)`
+- Reward updates are triggered by existing interaction APIs:
+  - `POST /api/v2/feeds/{feedId}/like`
+  - `POST /api/v2/feeds/{feedId}/comments`

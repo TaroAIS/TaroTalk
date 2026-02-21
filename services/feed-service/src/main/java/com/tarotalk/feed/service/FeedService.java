@@ -1,13 +1,18 @@
 package com.tarotalk.feed.service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tarotalk.common.exception.ApiException;
+import com.tarotalk.common.web.TraceContext;
 import com.tarotalk.feed.api.CommentRequest;
 import com.tarotalk.feed.api.CreateFeedRequest;
 import com.tarotalk.feed.api.LikeActionRequest;
 import com.tarotalk.feed.api.LikeRequest;
 import com.tarotalk.feed.domain.Feed;
 import com.tarotalk.feed.domain.FeedInteraction;
+import com.tarotalk.feed.domain.FeedRankingDecision;
 import com.tarotalk.feed.repo.FeedInteractionRepository;
+import com.tarotalk.feed.repo.FeedRankingDecisionRepository;
 import com.tarotalk.feed.repo.FeedRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -33,14 +38,19 @@ import java.util.UUID;
 @Service
 public class FeedService {
     private static final Logger log = LoggerFactory.getLogger(FeedService.class);
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     private static final double DEFAULT_FRESHNESS_WEIGHT = 0.35;
     private static final double DEFAULT_INTERACTION_WEIGHT = 0.25;
     private static final double DEFAULT_RELATIONSHIP_WEIGHT = 0.20;
     private static final double DEFAULT_NARRATIVE_WEIGHT = 0.20;
+    private static final String BANDIT_MODE_SHADOW = "shadow";
+    private static final String BANDIT_POLICY_NAME = "linucb-epsilon-shadow";
 
     private final FeedRepository feedRepository;
     private final FeedInteractionRepository interactionRepository;
+    private final FeedRankingDecisionRepository feedRankingDecisionRepository;
     private final FeedEventPublisher eventPublisher;
+    private final BanditPolicyService banditPolicyService;
     private final RestTemplate restTemplate;
     private final String userServiceUrl;
     private final String relationshipServiceUrl;
@@ -52,6 +62,7 @@ public class FeedService {
     private final double interactionVelocityWeight;
     private final double relationshipAffinityWeight;
     private final double narrativeRelevanceWeight;
+    private final String banditMode;
 
     public FeedService(FeedRepository feedRepository,
                        FeedInteractionRepository interactionRepository,
@@ -100,25 +111,30 @@ public class FeedService {
                 DEFAULT_FRESHNESS_WEIGHT,
                 DEFAULT_INTERACTION_WEIGHT,
                 DEFAULT_RELATIONSHIP_WEIGHT,
-                DEFAULT_NARRATIVE_WEIGHT
+                DEFAULT_NARRATIVE_WEIGHT,
+                null,
+                new BanditPolicyService(),
+                BANDIT_MODE_SHADOW
         );
     }
 
-    @Autowired
     public FeedService(FeedRepository feedRepository,
                        FeedInteractionRepository interactionRepository,
                        FeedEventPublisher eventPublisher,
                        RestTemplate restTemplate,
-                       @Value("${integrations.user-service.base-url:}") String userServiceUrl,
-                       @Value("${integrations.relationship-service.base-url:}") String relationshipServiceUrl,
-                       @Value("${integrations.world-service.base-url:}") String worldServiceUrl,
-                       @Value("${feed.visibility.strategy:contact}") String visibilityStrategy,
-                       @Value("${feed.event.ttl-hours:72}") long eventTtlHours,
-                       @Value("${feed.event.max-count:200}") int eventMaxCount,
-                       @Value("${feed.ranking.weights.freshness:0.35}") double freshnessWeight,
-                       @Value("${feed.ranking.weights.interaction-velocity:0.25}") double interactionVelocityWeight,
-                       @Value("${feed.ranking.weights.relationship-affinity:0.20}") double relationshipAffinityWeight,
-                       @Value("${feed.ranking.weights.narrative-relevance:0.20}") double narrativeRelevanceWeight) {
+                       String userServiceUrl,
+                       String relationshipServiceUrl,
+                       String worldServiceUrl,
+                       String visibilityStrategy,
+                       long eventTtlHours,
+                       int eventMaxCount,
+                       double freshnessWeight,
+                       double interactionVelocityWeight,
+                       double relationshipAffinityWeight,
+                       double narrativeRelevanceWeight,
+                       FeedRankingDecisionRepository feedRankingDecisionRepository,
+                       BanditPolicyService banditPolicyService,
+                       String banditMode) {
         this.feedRepository = feedRepository;
         this.interactionRepository = interactionRepository;
         this.eventPublisher = eventPublisher;
@@ -133,6 +149,83 @@ public class FeedService {
         this.interactionVelocityWeight = positiveWeight(interactionVelocityWeight, DEFAULT_INTERACTION_WEIGHT);
         this.relationshipAffinityWeight = positiveWeight(relationshipAffinityWeight, DEFAULT_RELATIONSHIP_WEIGHT);
         this.narrativeRelevanceWeight = positiveWeight(narrativeRelevanceWeight, DEFAULT_NARRATIVE_WEIGHT);
+        this.feedRankingDecisionRepository = feedRankingDecisionRepository;
+        this.banditPolicyService = banditPolicyService == null ? new BanditPolicyService() : banditPolicyService;
+        this.banditMode = normalizeBanditMode(banditMode);
+    }
+
+    public FeedService(FeedRepository feedRepository,
+                       FeedInteractionRepository interactionRepository,
+                       FeedEventPublisher eventPublisher,
+                       RestTemplate restTemplate,
+                       String userServiceUrl,
+                       String relationshipServiceUrl,
+                       String worldServiceUrl,
+                       String visibilityStrategy,
+                       long eventTtlHours,
+                       int eventMaxCount,
+                       double freshnessWeight,
+                       double interactionVelocityWeight,
+                       double relationshipAffinityWeight,
+                       double narrativeRelevanceWeight) {
+        this(
+                feedRepository,
+                interactionRepository,
+                eventPublisher,
+                restTemplate,
+                userServiceUrl,
+                relationshipServiceUrl,
+                worldServiceUrl,
+                visibilityStrategy,
+                eventTtlHours,
+                eventMaxCount,
+                freshnessWeight,
+                interactionVelocityWeight,
+                relationshipAffinityWeight,
+                narrativeRelevanceWeight,
+                null,
+                new BanditPolicyService(),
+                BANDIT_MODE_SHADOW
+        );
+    }
+
+    @Autowired
+    public FeedService(FeedRepository feedRepository,
+                       FeedInteractionRepository interactionRepository,
+                       FeedRankingDecisionRepository feedRankingDecisionRepository,
+                       FeedEventPublisher eventPublisher,
+                       BanditPolicyService banditPolicyService,
+                       RestTemplate restTemplate,
+                       @Value("${integrations.user-service.base-url:}") String userServiceUrl,
+                       @Value("${integrations.relationship-service.base-url:}") String relationshipServiceUrl,
+                       @Value("${integrations.world-service.base-url:}") String worldServiceUrl,
+                       @Value("${feed.visibility.strategy:contact}") String visibilityStrategy,
+                       @Value("${feed.event.ttl-hours:72}") long eventTtlHours,
+                       @Value("${feed.event.max-count:200}") int eventMaxCount,
+                       @Value("${feed.ranking.weights.freshness:0.35}") double freshnessWeight,
+                       @Value("${feed.ranking.weights.interaction-velocity:0.25}") double interactionVelocityWeight,
+                       @Value("${feed.ranking.weights.relationship-affinity:0.20}") double relationshipAffinityWeight,
+                       @Value("${feed.ranking.weights.narrative-relevance:0.20}") double narrativeRelevanceWeight,
+                       @Value("${feed.ranking.bandit.mode:shadow}") String banditMode) {
+        this(
+                feedRepository,
+                interactionRepository,
+                eventPublisher,
+                restTemplate,
+                userServiceUrl,
+                relationshipServiceUrl,
+                worldServiceUrl,
+                visibilityStrategy,
+                eventTtlHours,
+                eventMaxCount,
+                freshnessWeight,
+                interactionVelocityWeight,
+                relationshipAffinityWeight,
+                narrativeRelevanceWeight,
+                feedRankingDecisionRepository,
+                banditPolicyService,
+                banditMode
+        );
     }
 
     public Feed create(CreateFeedRequest request) {
@@ -191,6 +284,7 @@ public class FeedService {
             Map<UUID, Double> relationshipWeights = fetchRelationshipWeights(viewerId);
             NarrativeProfile profile = fetchNarrativeProfile(viewerId);
             Map<UUID, Double> scores = new HashMap<>();
+            Map<UUID, RankingFeatures> featuresByFeedId = new HashMap<>();
             Instant now = Instant.now();
 
             for (Feed feed : feeds) {
@@ -211,6 +305,19 @@ public class FeedService {
                         + relationshipAffinity * (relationshipAffinityWeight / weightTotal)
                         + narrativeRelevance * (narrativeRelevanceWeight / weightTotal);
                 scores.put(feed.getFeedId(), totalScore);
+                double banditShadowScore = banditPolicyService.scoreShadow(
+                        viewerId,
+                        feed.getFeedId(),
+                        rankingFeatureMap(freshness, interactionVelocity, relationshipAffinity, narrativeRelevance)
+                );
+                featuresByFeedId.put(feed.getFeedId(), new RankingFeatures(
+                        freshness,
+                        interactionVelocity,
+                        relationshipAffinity,
+                        narrativeRelevance,
+                        totalScore,
+                        banditShadowScore
+                ));
             }
 
             ordered = new ArrayList<>(feeds);
@@ -218,6 +325,8 @@ public class FeedService {
                     scores.getOrDefault(right.getFeedId(), 0.0),
                     scores.getOrDefault(left.getFeedId(), 0.0)
             ));
+
+            persistShadowRankingDecisions(viewerId, ordered, featuresByFeedId);
         }
 
         List<com.tarotalk.feed.api.FeedResponse> responses = new ArrayList<>();
@@ -255,6 +364,7 @@ public class FeedService {
         FeedInteraction saved = interactionRepository.save(interaction);
         eventPublisher.publishFeedLiked(feed, request.getUserId());
         syncRelationship(request.getUserId(), feed.getAuthorId(), "LIKE");
+        updateBanditReward(request.getUserId(), feedId, 1.0);
         return saved;
     }
 
@@ -270,6 +380,7 @@ public class FeedService {
         FeedInteraction saved = interactionRepository.save(interaction);
         String eventId = eventPublisher.publishFeedCommented(feed, request.getUserId(), request.getContent());
         syncRelationship(request.getUserId(), feed.getAuthorId(), "COMMENT");
+        updateBanditReward(request.getUserId(), feedId, 2.0);
         return new CommentResult(saved, eventId);
     }
 
@@ -292,6 +403,7 @@ public class FeedService {
             FeedInteraction saved = interactionRepository.save(interaction);
             String eventId = eventPublisher.publishFeedLiked(feed, request.getUserId());
             syncRelationship(request.getUserId(), feed.getAuthorId(), "LIKE");
+            updateBanditReward(request.getUserId(), feedId, 1.0);
             return new ToggleLikeResult(saved, true, eventId);
         }
 
@@ -299,9 +411,93 @@ public class FeedService {
             interactionRepository.delete(existing.get());
             String eventId = eventPublisher.publishFeedUnliked(feed, request.getUserId());
             syncRelationship(request.getUserId(), feed.getAuthorId(), "UNLIKE");
+            updateBanditReward(request.getUserId(), feedId, -1.0);
             return new ToggleLikeResult(null, false, eventId);
         }
         return new ToggleLikeResult(null, false, null);
+    }
+
+    private void persistShadowRankingDecisions(UUID viewerId, List<Feed> ordered, Map<UUID, RankingFeatures> featuresByFeedId) {
+        if (!BANDIT_MODE_SHADOW.equals(banditMode) || feedRankingDecisionRepository == null || viewerId == null || ordered == null || ordered.isEmpty()) {
+            return;
+        }
+        String traceId = TraceContext.currentTraceIdOrRandom();
+        int idx = 0;
+        for (Feed feed : ordered) {
+            if (feed == null || feed.getFeedId() == null) {
+                continue;
+            }
+            RankingFeatures features = featuresByFeedId.get(feed.getFeedId());
+            if (features == null) {
+                continue;
+            }
+            try {
+                FeedRankingDecision decision = new FeedRankingDecision(
+                        UUID.randomUUID(),
+                        viewerId,
+                        feed.getFeedId(),
+                        BANDIT_POLICY_NAME,
+                        features.banditShadowScore
+                );
+                decision.setChosen(idx == 0);
+                decision.setTraceId(traceId);
+                decision.setContextJson(toRankingContextJson(feed, features, idx));
+                feedRankingDecisionRepository.save(decision);
+            } catch (Exception ex) {
+                log.warn("persist shadow decision failed: {}", ex.getMessage());
+            }
+            idx += 1;
+        }
+    }
+
+    private String toRankingContextJson(Feed feed, RankingFeatures features, int rank) {
+        Map<String, Object> context = new HashMap<>();
+        context.put("feedId", String.valueOf(feed.getFeedId()));
+        context.put("authorId", feed.getAuthorId() == null ? null : feed.getAuthorId().toString());
+        context.put("rank", rank);
+        context.put("mode", banditMode);
+        context.put("freshness", features.freshness);
+        context.put("interactionVelocity", features.interactionVelocity);
+        context.put("relationshipAffinity", features.relationshipAffinity);
+        context.put("narrativeRelevance", features.narrativeRelevance);
+        context.put("baselineScore", features.baselineScore);
+        context.put("banditShadowScore", features.banditShadowScore);
+        try {
+            return OBJECT_MAPPER.writeValueAsString(context);
+        } catch (JsonProcessingException ex) {
+            return "{\"feedId\":\"" + feed.getFeedId() + "\",\"rank\":" + rank + "}";
+        }
+    }
+
+    private Map<String, Double> rankingFeatureMap(double freshness,
+                                                  double interactionVelocity,
+                                                  double relationshipAffinity,
+                                                  double narrativeRelevance) {
+        Map<String, Double> features = new HashMap<>();
+        features.put("freshness", freshness);
+        features.put("interactionVelocity", interactionVelocity);
+        features.put("relationshipAffinity", relationshipAffinity);
+        features.put("narrativeRelevance", narrativeRelevance);
+        return features;
+    }
+
+    private void updateBanditReward(UUID viewerId, UUID feedId, double rewardDelta) {
+        if (feedRankingDecisionRepository == null || viewerId == null || feedId == null || rewardDelta == 0.0) {
+            return;
+        }
+        try {
+            java.util.Optional<FeedRankingDecision> latest = feedRankingDecisionRepository
+                    .findFirstByViewerIdAndFeedIdOrderByCreatedAtDesc(viewerId, feedId);
+            if (latest.isEmpty()) {
+                return;
+            }
+            FeedRankingDecision decision = latest.get();
+            double currentReward = decision.getReward() == null ? 0.0 : decision.getReward();
+            decision.setReward(currentReward + rewardDelta);
+            feedRankingDecisionRepository.save(decision);
+        } catch (Exception ex) {
+            log.warn("update bandit reward failed: {}", ex.getMessage());
+        }
     }
 
     private Set<UUID> resolveVisibleAuthorIds(UUID viewerId, String visibilityOverride, boolean includeSelf) {
@@ -678,6 +874,13 @@ public class FeedService {
         return configured;
     }
 
+    private String normalizeBanditMode(String mode) {
+        if (mode == null || mode.trim().isEmpty()) {
+            return BANDIT_MODE_SHADOW;
+        }
+        return mode.trim().toLowerCase(Locale.ROOT);
+    }
+
     private double weightTotal() {
         double total = freshnessWeight + interactionVelocityWeight + relationshipAffinityWeight + narrativeRelevanceWeight;
         return total > 0.0 ? total : 1.0;
@@ -709,6 +912,29 @@ public class FeedService {
     private static class NarrativeProfile {
         private final Set<UUID> actorIds = new HashSet<>();
         private final Set<String> keywords = new HashSet<>();
+    }
+
+    private static class RankingFeatures {
+        private final double freshness;
+        private final double interactionVelocity;
+        private final double relationshipAffinity;
+        private final double narrativeRelevance;
+        private final double baselineScore;
+        private final double banditShadowScore;
+
+        private RankingFeatures(double freshness,
+                                double interactionVelocity,
+                                double relationshipAffinity,
+                                double narrativeRelevance,
+                                double baselineScore,
+                                double banditShadowScore) {
+            this.freshness = freshness;
+            this.interactionVelocity = interactionVelocity;
+            this.relationshipAffinity = relationshipAffinity;
+            this.narrativeRelevance = narrativeRelevance;
+            this.baselineScore = baselineScore;
+            this.banditShadowScore = banditShadowScore;
+        }
     }
 
     public static class ToggleLikeResult {

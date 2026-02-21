@@ -21,6 +21,7 @@
 | P12 | completed | p12_report.md | p12_optimization.md | 因果剧情图（world causal edges）与 replay 聚合增强 | 2026-02-21 |
 | P13 | completed | p13_report.md | p13_optimization.md | what-if 分叉模拟 API 与 world 分支场景记录 | 2026-02-21 |
 | P14 | completed | p14_report.md | p14_optimization.md | 角色漂移守卫（检测、重生成、降权）与 trace 决策记录 | 2026-02-21 |
+| P15 | completed | p15_report.md | p15_optimization.md | Feed 排序 bandit 影子模式、决策日志与 reward 回灌 | 2026-02-21 |
 
 ## 交付附件
 - `p10_release_runbook.md`

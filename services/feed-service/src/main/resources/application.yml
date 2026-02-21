@@ -37,6 +37,8 @@ feed:
     strategy: hybrid
     max-recipients: 60
   ranking:
+    bandit:
+      mode: shadow
     weights:
       freshness: 0.35
       interaction-velocity: 0.25

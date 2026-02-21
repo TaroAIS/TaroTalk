@@ -76,3 +76,8 @@
 - Added turn-level drift detection for role consistency.
 - Added one-time regeneration and deweight fallback for drifting outputs.
 - Drift decisions are now attached to director trace for replay diagnostics.
+
+## P15 Bandit Shadow Ranking Update (2026-02-21)
+- Added `feed_ranking_decision` as shadow experiment storage in feed-service.
+- Baseline ranking path remains the serving path; bandit policy only records parallel decisions.
+- Interaction feedback (like/comment/unlike) now updates shadow rewards for offline policy evaluation.

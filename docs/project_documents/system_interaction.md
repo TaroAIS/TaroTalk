@@ -75,3 +75,9 @@
 2. Drift guard scores each turn by role consistency.
 3. Drifting turns are regenerated once; unresolved turns are deweighted/filtered.
 4. Drift decisions are persisted in director trace.
+
+## P15 Interaction Flow (2026-02-21)
+1. Client reads feed list through existing API path.
+2. feed-service computes baseline ranking and returns baseline order.
+3. In shadow mode, feed-service writes parallel bandit decisions (`chosen` from baseline top).
+4. User like/comment/unlike updates latest shadow decision reward for `(viewerId, feedId)`.

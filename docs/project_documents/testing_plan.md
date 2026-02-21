@@ -65,3 +65,9 @@
 - Drift threshold detection test.
 - Drift regeneration + deweight path test.
 - Stable output no-extra-call regression test.
+
+## P15 Test Additions (2026-02-21)
+- `FeedBanditShadowTest`:
+  - verifies shadow mode keeps baseline ordering unchanged.
+  - verifies shadow decisions are persisted with chosen marker.
+  - verifies like/comment interaction updates bandit reward.

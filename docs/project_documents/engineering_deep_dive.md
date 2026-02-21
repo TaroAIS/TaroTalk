@@ -401,3 +401,8 @@ TaroTalk 的核心价值在于：将“生成式能力”从演示级 prompt 效
 - Drift scoring uses role-style keyword overlap + persona overlap + novelty signal.
 - Regeneration prompt rewrites drifting role lines once.
 - Persistent drift triggers per-round speaker deweight.
+
+## P15 Engineering Notes (2026-02-21)
+- Shadow policy scoring is deterministic and isolated from serving rank output.
+- `FeedService` records per-candidate context for every ranked response in shadow mode.
+- Reward backfill is wired into interaction writes to produce trainable feedback traces without online policy switch.

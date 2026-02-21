@@ -84,3 +84,8 @@
 ## P14 Ops Note (2026-02-21)
 - Drift guard is in-process orchestrator logic; no new infra dependency.
 - Diagnostics available through existing trace replay stack.
+
+## P15 Ops Note (2026-02-21)
+- feed-service新增配置：`feed.ranking.bandit.mode=shadow`（默认影子模式）。
+- 新增 `feed_ranking_decision` 表由 JPA 自动建表（当前本地 profile）。
+- 该阶段无新增外部中间件依赖，不改变现网读路径和排序行为。

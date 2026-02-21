@@ -16,3 +16,8 @@
 ## P14 Role Drift Guard
 - Design goal: keep character consistency under multi-round, multi-role generation.
 - Design strategy: detect -> regenerate once -> deweight as deterministic safety fallback.
+
+## P15 Bandit Ranking (Shadow)
+- Design goal: introduce online-learnable ranking signals without changing current feed UX.
+- Design strategy: baseline rank serves traffic; bandit rank logs decisions + rewards in shadow.
+- Tradeoff: learnability improves, but immediate ranking gain is deferred until policy switch phase.

@@ -89,3 +89,8 @@
 - feed-service新增配置：`feed.ranking.bandit.mode=shadow`（默认影子模式）。
 - 新增 `feed_ranking_decision` 表由 JPA 自动建表（当前本地 profile）。
 - 该阶段无新增外部中间件依赖，不改变现网读路径和排序行为。
+
+## P16 Ops Note (2026-02-21)
+- event-service 新增 explain 接口，无需新增基础设施。
+- 前端调试入口由 `NEXT_PUBLIC_INTERNAL_DEBUG` 控制，默认应在非内网环境关闭。
+- 调试链路仍复用现有 trace/replay 数据源，未新增写路径风险。

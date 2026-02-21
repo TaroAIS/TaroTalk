@@ -1,5 +1,6 @@
 package com.tarotalk.event.api;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tarotalk.common.api.ApiResponse;
 import com.tarotalk.event.service.EventService;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -14,6 +15,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import javax.validation.Valid;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -23,6 +25,7 @@ import java.util.stream.Collectors;
 @Validated
 public class EventController {
     private final EventService eventService;
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     public EventController(EventService eventService) {
         this.eventService = eventService;
@@ -64,6 +67,32 @@ public class EventController {
                 .stream()
                 .map(EventResponse::from)
                 .collect(Collectors.toList());
+        TraceAggregateResponse response = buildAggregate(traceId, rows);
+        return ApiResponse.ok(response);
+    }
+
+    @GetMapping("/api/v2/traces/{traceId}/explain")
+    public ApiResponse<TraceExplainResponse> explain(@PathVariable String traceId) {
+        List<EventResponse> rows = eventService.replay(traceId)
+                .stream()
+                .map(EventResponse::from)
+                .collect(Collectors.toList());
+
+        TraceAggregateResponse aggregate = buildAggregate(traceId, rows);
+        TraceExplainResponse response = new TraceExplainResponse(traceId, rows);
+        response.setEventTypeCounts(aggregate.getEventTypeCounts());
+        response.setSourceServiceCounts(aggregate.getSourceServiceCounts());
+        response.setCausalEdges(aggregate.getCausalEdges());
+        response.setDirectorTrace(extractValues(rows, "director_trace", "DIRECTOR_TRACE"));
+        response.setToolCalls(extractValues(rows, "tool_calls", "TOOL_CALL"));
+        response.setStateEffects(extractValues(rows, "state_effects", "STATE_EFFECT"));
+        response.setBanditDecisions(extractValues(rows, "bandit_decisions", "BANDIT"));
+        response.setDriftDecisions(extractDriftDecisions(rows));
+        response.setSafetyReport(extractValues(rows, "safety_report", "SAFETY"));
+        return ApiResponse.ok(response);
+    }
+
+    private TraceAggregateResponse buildAggregate(String traceId, List<EventResponse> rows) {
         TraceAggregateResponse response = new TraceAggregateResponse(traceId, rows);
         Map<String, Long> eventTypeCounts = new HashMap<>();
         Map<String, Long> sourceServiceCounts = new HashMap<>();
@@ -76,7 +105,7 @@ public class EventController {
         response.setEventTypeCounts(eventTypeCounts);
         response.setSourceServiceCounts(sourceServiceCounts);
         response.setCausalEdges(buildCausalEdges(traceId, rows));
-        return ApiResponse.ok(response);
+        return response;
     }
 
     private List<Map<String, Object>> buildCausalEdges(String traceId, List<EventResponse> rows) {
@@ -96,5 +125,75 @@ public class EventController {
             edges.add(edge);
         }
         return edges;
+    }
+
+    private List<Object> extractValues(List<EventResponse> rows, String key, String eventTypeHint) {
+        List<Object> values = new ArrayList<>();
+        if (rows == null || rows.isEmpty()) {
+            return values;
+        }
+        for (EventResponse row : rows) {
+            Map<String, Object> payload = parsePayload(row.getPayloadJson());
+            appendValue(values, payload.get(key));
+            if (eventTypeHint != null
+                    && row.getEventType() != null
+                    && row.getEventType().toUpperCase().contains(eventTypeHint)
+                    && !payload.isEmpty()) {
+                values.add(payload);
+            }
+        }
+        return values;
+    }
+
+    private List<Object> extractDriftDecisions(List<EventResponse> rows) {
+        List<Object> values = extractValues(rows, "drift_decisions", "DRIFT");
+        for (EventResponse row : rows) {
+            Map<String, Object> payload = parsePayload(row.getPayloadJson());
+            Object directorTrace = payload.get("director_trace");
+            if (directorTrace instanceof Map) {
+                appendValue(values, ((Map<?, ?>) directorTrace).get("drift_decisions"));
+            } else if (directorTrace instanceof List) {
+                for (Object item : (List<?>) directorTrace) {
+                    if (item instanceof Map) {
+                        appendValue(values, ((Map<?, ?>) item).get("drift_decisions"));
+                    }
+                }
+            }
+        }
+        return values;
+    }
+
+    private Map<String, Object> parsePayload(String payloadJson) {
+        if (payloadJson == null || payloadJson.trim().isEmpty()) {
+            return new HashMap<>();
+        }
+        try {
+            Object parsed = objectMapper.readValue(payloadJson, Object.class);
+            if (parsed instanceof Map) {
+                Map<String, Object> normalized = new HashMap<>();
+                for (Map.Entry<?, ?> entry : ((Map<?, ?>) parsed).entrySet()) {
+                    normalized.put(String.valueOf(entry.getKey()), entry.getValue());
+                }
+                return normalized;
+            }
+            return new HashMap<>();
+        } catch (Exception ex) {
+            return new HashMap<>();
+        }
+    }
+
+    private void appendValue(List<Object> bucket, Object value) {
+        if (value == null) {
+            return;
+        }
+        if (value instanceof List) {
+            for (Object item : (List<?>) value) {
+                if (item != null) {
+                    bucket.add(item);
+                }
+            }
+            return;
+        }
+        bucket.add(value);
     }
 }

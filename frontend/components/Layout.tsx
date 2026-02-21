@@ -6,6 +6,8 @@ interface LayoutProps {
 }
 
 export default function Layout({ children }: LayoutProps) {
+  const internalDebugEnabled = process.env.NEXT_PUBLIC_INTERNAL_DEBUG === "true";
+
   return (
     <div className="container">
       <header className="header">
@@ -22,7 +24,7 @@ export default function Layout({ children }: LayoutProps) {
           <Link href="/">Home</Link>
           <Link href="/contacts">Contacts</Link>
           <Link href="/feed">Feed</Link>
-          <Link href="/trace/demo-trace-id">Trace</Link>
+          {internalDebugEnabled && <Link href="/trace/demo-trace-id">Trace</Link>}
           <Link href="/profile">Profile</Link>
         </nav>
       </header>

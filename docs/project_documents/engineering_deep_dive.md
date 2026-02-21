@@ -406,3 +406,8 @@ TaroTalk 的核心价值在于：将“生成式能力”从演示级 prompt 效
 - Shadow policy scoring is deterministic and isolated from serving rank output.
 - `FeedService` records per-candidate context for every ranked response in shadow mode.
 - Reward backfill is wired into interaction writes to produce trainable feedback traces without online policy switch.
+
+## P16 Engineering Notes (2026-02-21)
+- Explain endpoint composes replay aggregate and payload-channel extraction in one API.
+- Extraction logic supports flat and nested payload keys (`director_trace.drift_decisions`).
+- Frontend trace page shifted from aggregate-only to explain-view model and now supports multi-channel diagnostics.

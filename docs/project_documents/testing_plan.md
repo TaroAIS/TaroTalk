@@ -71,3 +71,10 @@
   - verifies shadow mode keeps baseline ordering unchanged.
   - verifies shadow decisions are persisted with chosen marker.
   - verifies like/comment interaction updates bandit reward.
+
+## P16 Test Additions (2026-02-21)
+- event-service:
+  - explain API output channel extraction test.
+- frontend:
+  - trace page explain endpoint rendering test.
+  - layout trace-entry debug gate test (`NEXT_PUBLIC_INTERNAL_DEBUG`).

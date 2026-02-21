@@ -148,3 +148,9 @@ GraphQL 通过单一端点 `/graphql`，支持查询（Query）、变更（Mutat
 - Reward updates are triggered by existing interaction APIs:
   - `POST /api/v2/feeds/{feedId}/like`
   - `POST /api/v2/feeds/{feedId}/comments`
+
+## P16 API Additions (2026-02-21)
+- `GET /api/v2/traces/{traceId}/explain`
+  - Returns aggregated replay + explain channels:
+  - `events`, `eventTypeCounts`, `sourceServiceCounts`, `causalEdges`,
+  - `directorTrace`, `toolCalls`, `stateEffects`, `banditDecisions`, `driftDecisions`, `safetyReport`.

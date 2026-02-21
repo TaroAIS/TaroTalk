@@ -21,3 +21,8 @@
 - Design goal: introduce online-learnable ranking signals without changing current feed UX.
 - Design strategy: baseline rank serves traffic; bandit rank logs decisions + rewards in shadow.
 - Tradeoff: learnability improves, but immediate ranking gain is deferred until policy switch phase.
+
+## P16 Internal Explainability UI
+- Design goal: make trace-level decision evidence visible to engineers in one place.
+- Design strategy: backend explain aggregation + frontend multi-panel debug page.
+- Security posture: debug entry is gated by environment flag to avoid accidental external exposure.

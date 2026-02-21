@@ -81,3 +81,8 @@
 - Added `feed_ranking_decision` as shadow experiment storage in feed-service.
 - Baseline ranking path remains the serving path; bandit policy only records parallel decisions.
 - Interaction feedback (like/comment/unlike) now updates shadow rewards for offline policy evaluation.
+
+## P16 Explainability Update (2026-02-21)
+- Added trace explain aggregation endpoint in event-service.
+- Added frontend trace multi-panel debug page (timeline/causal/ranking/safety).
+- Added internal debug visibility gate (`NEXT_PUBLIC_INTERNAL_DEBUG`) for trace entry.

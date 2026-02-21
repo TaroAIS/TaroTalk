@@ -81,3 +81,9 @@
 2. feed-service computes baseline ranking and returns baseline order.
 3. In shadow mode, feed-service writes parallel bandit decisions (`chosen` from baseline top).
 4. User like/comment/unlike updates latest shadow decision reward for `(viewerId, feedId)`.
+
+## P16 Interaction Flow (2026-02-21)
+1. Internal user opens trace debug page with trace id.
+2. Frontend requests `GET /api/v2/traces/{traceId}/explain`.
+3. event-service returns replay events + causal edges + explain channels.
+4. Frontend renders timeline/causal/ranking/safety panels from one payload.

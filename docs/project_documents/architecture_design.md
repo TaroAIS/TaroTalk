@@ -71,3 +71,8 @@
 - Added orchestrator branch simulation API for counterfactual timeline analysis.
 - Branch outputs are persisted into world-service as read-only scenario records.
 - Dry-run branch execution explicitly avoids primary world-state mutation.
+
+## P14 Role Drift Guard Update (2026-02-21)
+- Added turn-level drift detection for role consistency.
+- Added one-time regeneration and deweight fallback for drifting outputs.
+- Drift decisions are now attached to director trace for replay diagnostics.

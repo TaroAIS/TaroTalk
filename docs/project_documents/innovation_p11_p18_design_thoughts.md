@@ -12,3 +12,7 @@
 ## P13 What-if Timeline
 - Design goal: evaluate alternative story evolutions without contaminating mainline state.
 - Design strategy: deterministic branch generation + explicit dry-run persistence for audit.
+
+## P14 Role Drift Guard
+- Design goal: keep character consistency under multi-round, multi-role generation.
+- Design strategy: detect -> regenerate once -> deweight as deterministic safety fallback.

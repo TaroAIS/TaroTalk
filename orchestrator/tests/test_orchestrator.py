@@ -6,6 +6,7 @@ sys.path.append(str(Path(__file__).resolve().parents[1]))
 
 from orchestrator.app.orchestrator import OrchestratorEngine
 import orchestrator.app.orchestrator as orch_module
+from orchestrator.app.drift_guard import DriftGuard
 
 
 def test_run_chat_multi_step(monkeypatch):
@@ -71,6 +72,12 @@ def test_run_chat_multi_step(monkeypatch):
     assert result["turns"][1]["role"] == "friend"
     assert result["turns"][1]["user_id"] == "u2"
     assert result["role_user_map"]["friend"] == "u2"
+
+
+def test_drift_guard_threshold_detection():
+    guard = DriftGuard()
+    score = guard.score(role="friend", content="buy now limited discount deal", persona_summary="kind supportive person")
+    assert guard.is_drift(score) is True
 
 
 def test_director_roles(monkeypatch):
@@ -182,6 +189,61 @@ def test_run_simulation_v2_shape():
     assert result["status"] == "scheduled"
     assert result["workflow_id"]
     assert len(result["scheduled_events"]) == 2
+
+
+def test_drift_regeneration_and_no_extra_call_when_stable(monkeypatch):
+    calls = {"count": 0}
+
+    def fake_completion(messages, tools=None, tool_choice=None):
+        calls["count"] += 1
+        if calls["count"] == 1:
+            return {"choices": [{"message": {"content": "[friend] buy now discount deal"}}]}
+        return {"choices": [{"message": {"content": "[friend] support and share together"}}]}
+
+    monkeypatch.setattr(orch_module, "run_completion", fake_completion)
+    engine = OrchestratorEngine(max_steps=1, max_tool_calls=1)
+
+    async def fake_load_relationship_map(sender_id):
+        return {}
+
+    async def fake_load_memories(role_map, world_id=None):
+        return {}
+
+    monkeypatch.setattr(engine, "_load_relationship_map", fake_load_relationship_map)
+    monkeypatch.setattr(engine, "_load_memories", fake_load_memories)
+
+    result = asyncio.get_event_loop().run_until_complete(
+        engine.run_chat(
+            [{"role": "user", "content": "hi"}],
+            "supportive friend",
+            ["u2"],
+            None,
+            rounds=1,
+        )
+    )
+    actions = [item.get("action") for item in result["director_trace"].get("drift_decisions", [])]
+    assert "regenerate_once" in actions
+    assert calls["count"] == 2
+    assert "support and share together" in result["turns"][0]["content"]
+
+    calls["count"] = 0
+
+    def stable_completion(messages, tools=None, tool_choice=None):
+        calls["count"] += 1
+        return {"choices": [{"message": {"content": "[friend] support and share together"}}]}
+
+    monkeypatch.setattr(orch_module, "run_completion", stable_completion)
+    stable = asyncio.get_event_loop().run_until_complete(
+        engine.run_chat(
+            [{"role": "user", "content": "hello"}],
+            "supportive friend",
+            ["u2"],
+            None,
+            rounds=1,
+        )
+    )
+    assert calls["count"] == 1
+    assert stable["turns"][0]["role"] == "friend"
 
 
 def test_run_what_if_returns_ranked_branches():

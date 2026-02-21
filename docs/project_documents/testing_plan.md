@@ -60,3 +60,8 @@
 ## P13 Test Additions (2026-02-21)
 - orchestrator what-if branch ordering/recommendation test.
 - world-service branch scenario persistence test with no world-state writes.
+
+## P14 Test Additions (2026-02-21)
+- Drift threshold detection test.
+- Drift regeneration + deweight path test.
+- Stable output no-extra-call regression test.

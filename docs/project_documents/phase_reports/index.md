@@ -20,6 +20,7 @@
 | P11 | completed | p11_report.md | p11_optimization.md | 记忆编译器（world memories）、编排层优先记忆读取与回退 | 2026-02-21 |
 | P12 | completed | p12_report.md | p12_optimization.md | 因果剧情图（world causal edges）与 replay 聚合增强 | 2026-02-21 |
 | P13 | completed | p13_report.md | p13_optimization.md | what-if 分叉模拟 API 与 world 分支场景记录 | 2026-02-21 |
+| P14 | completed | p14_report.md | p14_optimization.md | 角色漂移守卫（检测、重生成、降权）与 trace 决策记录 | 2026-02-21 |
 
 ## 交付附件
 - `p10_release_runbook.md`

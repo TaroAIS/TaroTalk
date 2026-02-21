@@ -69,3 +69,9 @@
 2. Orchestrator builds candidate branches and recommendation.
 3. Orchestrator writes branch scenarios to world-service in dry-run mode.
 4. Caller receives branch list without mutating primary timeline.
+
+## P14 Interaction Flow (2026-02-21)
+1. Orchestrator generates raw turn candidates.
+2. Drift guard scores each turn by role consistency.
+3. Drifting turns are regenerated once; unresolved turns are deweighted/filtered.
+4. Drift decisions are persisted in director trace.

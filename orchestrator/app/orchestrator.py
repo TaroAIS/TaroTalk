@@ -10,6 +10,7 @@ from .llm_client import run_completion
 from .tools import tool_registry
 from .tool_executor import ToolExecutor
 from .director import pick_round_speakers, role_style
+from .drift_guard import DriftGuard
 from .config import settings
 
 ROLE_CANDIDATES = ["friend", "mentor", "rival", "advertiser"]
@@ -21,6 +22,7 @@ class OrchestratorEngine:
         self.max_tool_calls = max_tool_calls
         self.tools = tool_registry()
         self.executor = ToolExecutor()
+        self.drift_guard = DriftGuard()
 
     async def run_chat(
         self,
@@ -44,6 +46,8 @@ class OrchestratorEngine:
         replies: List[str] = []
         turns: List[Dict[str, Any]] = []
         director_rounds: List[Dict[str, Any]] = []
+        drift_decisions: List[Dict[str, Any]] = []
+        recent_turns_by_role: Dict[str, List[str]] = {}
         bindings = await self._build_role_bindings(sender_id, participants or [])
         role_map = {item["role"]: item["user_id"] for item in bindings}
         memories = await self._load_memories(role_map, world_id)
@@ -74,6 +78,7 @@ class OrchestratorEngine:
                     for speaker in speakers
                 ],
                 "tool_calls": [],
+                "drift_decisions": [],
             }
 
             for _ in range(self.max_steps):
@@ -114,7 +119,23 @@ class OrchestratorEngine:
                                 "content": content.strip(),
                             }
                         ]
+                    parsed_turns, turn_decisions = self._guard_turns(
+                        parsed_turns=parsed_turns,
+                        persona_summary=persona_summary,
+                        recent_turns_by_role=recent_turns_by_role,
+                        convo=convo,
+                        round_number=round_index + 1,
+                        role_map=role_map,
+                        allowed_roles=speaker_roles,
+                        round_trace=round_trace,
+                    )
                     turns.extend(parsed_turns)
+                    drift_decisions.extend(turn_decisions)
+                    for turn in parsed_turns:
+                        role = str(turn.get("role") or "")
+                        if not role:
+                            continue
+                        recent_turns_by_role.setdefault(role, []).append(str(turn.get("content") or ""))
                     round_trace["generated_turns"] = len(parsed_turns)
                     round_trace["raw_content"] = content
                     convo.append({"role": "assistant", "content": content})
@@ -132,6 +153,7 @@ class OrchestratorEngine:
                 "intent": intent,
                 "bindings": bindings,
                 "rounds": director_rounds,
+                "drift_decisions": drift_decisions,
             },
             "state_effects": self._build_state_effects(turns, tool_calls_collected, conversation_id, world_id),
         }
@@ -495,6 +517,120 @@ class OrchestratorEngine:
         if not lines:
             return ""
         return "\n".join(lines) + "\n"
+
+    def _guard_turns(
+        self,
+        parsed_turns: List[Dict[str, Any]],
+        persona_summary: Optional[str],
+        recent_turns_by_role: Dict[str, List[str]],
+        convo: List[Dict[str, str]],
+        round_number: int,
+        role_map: Dict[str, str],
+        allowed_roles: List[str],
+        round_trace: Dict[str, Any],
+    ) -> Any:
+        if not parsed_turns:
+            return parsed_turns, []
+
+        decisions: List[Dict[str, Any]] = []
+        drifting_roles: List[str] = []
+        scored: List[Dict[str, Any]] = []
+        for turn in parsed_turns:
+            role = str(turn.get("role") or "")
+            content = str(turn.get("content") or "")
+            score = self.drift_guard.score(
+                role=role,
+                content=content,
+                persona_summary=persona_summary or "",
+                recent_turns=recent_turns_by_role.get(role, []),
+            )
+            is_drift = self.drift_guard.is_drift(score)
+            scored.append({"turn": turn, "score": score, "is_drift": is_drift})
+            if is_drift:
+                drifting_roles.append(role)
+            decisions.append(
+                {
+                    "round": round_number,
+                    "role": role,
+                    "score": score,
+                    "action": "detected" if is_drift else "accepted",
+                }
+            )
+
+        if not drifting_roles:
+            round_trace["drift_decisions"].extend(decisions)
+            return parsed_turns, decisions
+
+        regen_prompt = self._build_regeneration_prompt(parsed_turns, drifting_roles)
+        regen_result = run_completion(convo + [{"role": "system", "content": regen_prompt}], tools=None, tool_choice="none")
+        regen_choice = regen_result["choices"][0]["message"] if regen_result.get("choices") else {}
+        regen_content = regen_choice.get("content") or ""
+        regen_turns = self._parse_turns(regen_content, round_number, role_map, allowed_roles)
+        regen_by_role = {str(turn.get("role")): turn for turn in regen_turns if isinstance(turn, dict)}
+
+        guarded_turns: List[Dict[str, Any]] = []
+        deweighted_roles: List[str] = []
+        for row in scored:
+            turn = row["turn"]
+            role = str(turn.get("role") or "")
+            if not row["is_drift"]:
+                guarded_turns.append(turn)
+                continue
+
+            regenerated = regen_by_role.get(role)
+            if regenerated:
+                regen_score = self.drift_guard.score(
+                    role=role,
+                    content=str(regenerated.get("content") or ""),
+                    persona_summary=persona_summary or "",
+                    recent_turns=recent_turns_by_role.get(role, []),
+                )
+                decisions.append(
+                    {
+                        "round": round_number,
+                        "role": role,
+                        "score_before": row["score"],
+                        "score_after": regen_score,
+                        "action": "regenerate_once",
+                    }
+                )
+                if not self.drift_guard.is_drift(regen_score):
+                    guarded_turns.append(regenerated)
+                    continue
+            deweighted_roles.append(role)
+            decisions.append(
+                {
+                    "round": round_number,
+                    "role": role,
+                    "score": row["score"],
+                    "action": "deweighted",
+                }
+            )
+
+        if deweighted_roles:
+            deweight_set = set(deweighted_roles)
+            for speaker in round_trace.get("speakers", []):
+                role = str(speaker.get("role") or "")
+                if role in deweight_set:
+                    speaker["weight"] = round(float(speaker.get("weight", 0.0)) * 0.6, 4)
+
+        round_trace["drift_decisions"].extend(decisions)
+        return guarded_turns, decisions
+
+    def _build_regeneration_prompt(self, parsed_turns: List[Dict[str, Any]], drifting_roles: List[str]) -> str:
+        roles = ", ".join(sorted(set(drifting_roles)))
+        lines = []
+        for turn in parsed_turns:
+            role = str(turn.get("role") or "")
+            content = str(turn.get("content") or "")
+            lines.append(f"[{role}] {content}")
+        return (
+            "Rewrite only the drifting role lines to match role style and persona.\n"
+            "Return each line as: [role] message\n"
+            f"Drifting roles: {roles}\n"
+            "Original lines:\n"
+            + "\n".join(lines)
+        )
 
     def _parse_turns(
         self,

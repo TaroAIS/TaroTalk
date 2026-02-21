@@ -396,3 +396,8 @@ TaroTalk 的核心价值在于：将“生成式能力”从演示级 prompt 效
 - What-if scoring is deterministic hash-based for reproducibility in MVP.
 - Branch persistence includes trace id, policy, reason, and serialized event list.
 - Main world-state write path is intentionally untouched in branch recording.
+
+## P14 Engineering Notes (2026-02-21)
+- Drift scoring uses role-style keyword overlap + persona overlap + novelty signal.
+- Regeneration prompt rewrites drifting role lines once.
+- Persistent drift triggers per-round speaker deweight.

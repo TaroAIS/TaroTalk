@@ -137,3 +137,6 @@ GraphQL 通过单一端点 `/graphql`，支持查询（Query）、变更（Mutat
 - `POST /api/v2/a2a/simulate/what-if`
 - `POST /api/v2/worlds/{worldId}/branches`
 - `GET /api/v2/worlds/{worldId}/branches`
+
+## P14 Protocol Additions (2026-02-21)
+- `director_trace` now carries `drift_decisions[]` in orchestrator chat response.

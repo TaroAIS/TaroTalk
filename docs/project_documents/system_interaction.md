@@ -87,3 +87,9 @@
 2. Frontend requests `GET /api/v2/traces/{traceId}/explain`.
 3. event-service returns replay events + causal edges + explain channels.
 4. Frontend renders timeline/causal/ranking/safety panels from one payload.
+
+## P17 Interaction Flow (2026-02-21)
+1. Orchestrator requests world goal economy snapshot for current world.
+2. world-service computes utility per agent goal and returns ranked entries.
+3. Orchestrator builds speaker bindings with `relation_weight + goal_utility + recency_factor`.
+4. Director round speaker selection consumes updated binding weights.

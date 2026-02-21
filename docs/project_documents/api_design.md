@@ -154,3 +154,10 @@ GraphQL 通过单一端点 `/graphql`，支持查询（Query）、变更（Mutat
   - Returns aggregated replay + explain channels:
   - `events`, `eventTypeCounts`, `sourceServiceCounts`, `causalEdges`,
   - `directorTrace`, `toolCalls`, `stateEffects`, `banditDecisions`, `driftDecisions`, `safetyReport`.
+
+## P17 API Additions (2026-02-21)
+- `GET /api/v2/worlds/{worldId}/goals/economy`
+  - Returns goal economy rows with `utility` and economy factors.
+- `POST /api/v2/worlds/{worldId}/goals/evaluate`
+  - Request: `actorIds[]`, `objective`.
+  - Response: evaluated goal utilities ordered by utility score.

@@ -94,3 +94,8 @@
 - event-service 新增 explain 接口，无需新增基础设施。
 - 前端调试入口由 `NEXT_PUBLIC_INTERNAL_DEBUG` 控制，默认应在非内网环境关闭。
 - 调试链路仍复用现有 trace/replay 数据源，未新增写路径风险。
+
+## P17 Ops Note (2026-02-21)
+- world-service 的 `agent_goal` 表新增经济字段（JPA 自动变更）。
+- orchestrator 对 `world-service` 新增一次读依赖：`/api/v2/worlds/{worldId}/goals/economy`。
+- 若 world-service 不可用，orchestrator 自动回退到关系权重路径（goal utility 为 0）。

@@ -1,11 +1,11 @@
 package com.tarotalk.world.api;
 
-import com.tarotalk.world.domain.AgentGoal;
+import com.tarotalk.world.service.WorldService;
 
 import java.time.Instant;
 import java.util.UUID;
 
-public class GoalResponse {
+public class GoalEconomyResponse {
     private UUID goalId;
     private UUID worldId;
     private String agentId;
@@ -17,22 +17,24 @@ public class GoalResponse {
     private double expectedReward;
     private double riskPenalty;
     private double momentum;
+    private double utility;
     private Instant updatedAt;
 
-    public static GoalResponse from(AgentGoal goal) {
-        GoalResponse response = new GoalResponse();
-        response.goalId = goal.getGoalId();
-        response.worldId = goal.getWorldId();
-        response.agentId = goal.getAgentId();
-        response.goalType = goal.getGoalType();
-        response.priority = goal.getPriority();
-        response.status = goal.getStatus();
-        response.score = goal.getScore();
-        response.budget = goal.getBudget();
-        response.expectedReward = goal.getExpectedReward();
-        response.riskPenalty = goal.getRiskPenalty();
-        response.momentum = goal.getMomentum();
-        response.updatedAt = goal.getUpdatedAt();
+    public static GoalEconomyResponse from(WorldService.GoalEconomyEntry entry) {
+        GoalEconomyResponse response = new GoalEconomyResponse();
+        response.goalId = entry.getGoalId();
+        response.worldId = entry.getWorldId();
+        response.agentId = entry.getAgentId();
+        response.goalType = entry.getGoalType();
+        response.priority = entry.getPriority();
+        response.status = entry.getStatus();
+        response.score = entry.getScore();
+        response.budget = entry.getBudget();
+        response.expectedReward = entry.getExpectedReward();
+        response.riskPenalty = entry.getRiskPenalty();
+        response.momentum = entry.getMomentum();
+        response.utility = entry.getUtility();
+        response.updatedAt = entry.getUpdatedAt();
         return response;
     }
 
@@ -78,6 +80,10 @@ public class GoalResponse {
 
     public double getMomentum() {
         return momentum;
+    }
+
+    public double getUtility() {
+        return utility;
     }
 
     public Instant getUpdatedAt() {

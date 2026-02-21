@@ -26,3 +26,8 @@
 - Design goal: make trace-level decision evidence visible to engineers in one place.
 - Design strategy: backend explain aggregation + frontend multi-panel debug page.
 - Security posture: debug entry is gated by environment flag to avoid accidental external exposure.
+
+## P17 Goal Economy
+- Design goal: move speaker choice from short-term relationship bias to utility-driven long-term behavior.
+- Design strategy: world-service computes goal utility; orchestrator consumes utility in binding weights.
+- Tradeoff: utility model is deterministic and interpretable, but not yet learned from live outcomes.

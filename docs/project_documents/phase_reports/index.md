@@ -23,6 +23,7 @@
 | P14 | completed | p14_report.md | p14_optimization.md | 角色漂移守卫（检测、重生成、降权）与 trace 决策记录 | 2026-02-21 |
 | P15 | completed | p15_report.md | p15_optimization.md | Feed 排序 bandit 影子模式、决策日志与 reward 回灌 | 2026-02-21 |
 | P16 | completed | p16_report.md | p16_optimization.md | explain 聚合 API、Trace 多面板调试页、内部调试开关 | 2026-02-21 |
+| P17 | completed | p17_report.md | p17_optimization.md | Goal Economy 模型与 API、导演选人打分接入目标效用 | 2026-02-21 |
 
 ## 交付附件
 - `p10_release_runbook.md`

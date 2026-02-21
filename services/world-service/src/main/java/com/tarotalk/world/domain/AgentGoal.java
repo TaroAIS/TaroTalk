@@ -36,6 +36,18 @@ public class AgentGoal {
     @Column(name = "score", nullable = false)
     private double score;
 
+    @Column(name = "budget", nullable = false)
+    private double budget;
+
+    @Column(name = "expected_reward", nullable = false)
+    private double expectedReward;
+
+    @Column(name = "risk_penalty", nullable = false)
+    private double riskPenalty;
+
+    @Column(name = "momentum", nullable = false)
+    private double momentum;
+
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
 
@@ -53,6 +65,10 @@ public class AgentGoal {
         this.priority = priority;
         this.status = "ACTIVE";
         this.score = 0.0;
+        this.budget = 1.0;
+        this.expectedReward = 0.3;
+        this.riskPenalty = 0.1;
+        this.momentum = 0.2;
         this.createdAt = Instant.now();
         this.updatedAt = this.createdAt;
     }
@@ -111,6 +127,38 @@ public class AgentGoal {
 
     public void setScore(double score) {
         this.score = score;
+    }
+
+    public double getBudget() {
+        return budget;
+    }
+
+    public void setBudget(double budget) {
+        this.budget = budget;
+    }
+
+    public double getExpectedReward() {
+        return expectedReward;
+    }
+
+    public void setExpectedReward(double expectedReward) {
+        this.expectedReward = expectedReward;
+    }
+
+    public double getRiskPenalty() {
+        return riskPenalty;
+    }
+
+    public void setRiskPenalty(double riskPenalty) {
+        this.riskPenalty = riskPenalty;
+    }
+
+    public double getMomentum() {
+        return momentum;
+    }
+
+    public void setMomentum(double momentum) {
+        this.momentum = momentum;
     }
 
     public Instant getUpdatedAt() {

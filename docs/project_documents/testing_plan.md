@@ -78,3 +78,9 @@
 - frontend:
   - trace page explain endpoint rendering test.
   - layout trace-entry debug gate test (`NEXT_PUBLIC_INTERNAL_DEBUG`).
+
+## P17 Test Additions (2026-02-21)
+- world-service:
+  - goal economy budget exhaustion deweight test.
+- orchestrator:
+  - goal utility injection changes role binding weight test.

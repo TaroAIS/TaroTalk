@@ -295,6 +295,41 @@ def test_memory_priority_world_then_notification():
         monkeypatch.undo()
 
 
+def test_goal_economy_changes_speaker_weight(monkeypatch):
+    engine = OrchestratorEngine(max_steps=1, max_tool_calls=1)
+
+    async def fake_load_relationship_map(sender_id):
+        return {
+            "u2": {
+                "targetId": "u2",
+                "type": "friend",
+                "intimacyScore": 0.5,
+                "interactionCount": 5,
+                "commercialScore": 0.0,
+            },
+            "u3": {
+                "targetId": "u3",
+                "type": "mentor",
+                "intimacyScore": 0.5,
+                "interactionCount": 5,
+                "commercialScore": 0.0,
+            },
+        }
+
+    async def fake_load_goal_utilities(world_id):
+        return {"u2": 0.1, "u3": 0.9}
+
+    monkeypatch.setattr(engine, "_load_relationship_map", fake_load_relationship_map)
+    monkeypatch.setattr(engine, "_load_goal_utilities", fake_load_goal_utilities)
+
+    bindings = asyncio.get_event_loop().run_until_complete(
+        engine._build_role_bindings("u1", ["u1", "u2", "u3"], "world-1")
+    )
+    binding_map = {item["user_id"]: item for item in bindings if item.get("user_id") != "u1"}
+    assert binding_map["u3"]["goal_utility"] > binding_map["u2"]["goal_utility"]
+    assert binding_map["u3"]["weight"] > binding_map["u2"]["weight"]
+
+
 class DummyAsyncClientContext:
     def __init__(self, client):
         self.client = client

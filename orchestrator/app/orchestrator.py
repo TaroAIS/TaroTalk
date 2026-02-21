@@ -48,7 +48,7 @@ class OrchestratorEngine:
         director_rounds: List[Dict[str, Any]] = []
         drift_decisions: List[Dict[str, Any]] = []
         recent_turns_by_role: Dict[str, List[str]] = {}
-        bindings = await self._build_role_bindings(sender_id, participants or [])
+        bindings = await self._build_role_bindings(sender_id, participants or [], world_id)
         role_map = {item["role"]: item["user_id"] for item in bindings}
         memories = await self._load_memories(role_map, world_id)
 
@@ -273,10 +273,18 @@ class OrchestratorEngine:
         base += " Use tools when needed and answer concisely."
         return base
 
-    async def _build_role_bindings(self, sender_id: Optional[str], participants: List[str]) -> List[Dict[str, Any]]:
+    async def _build_role_bindings(
+        self,
+        sender_id: Optional[str],
+        participants: List[str],
+        world_id: Optional[str] = None,
+    ) -> List[Dict[str, Any]]:
         ordered_participants = [str(participant) for participant in participants]
         bindings: List[Dict[str, Any]] = []
         relationship_map = await self._load_relationship_map(sender_id)
+        should_load_goals = bool(world_id) and any(str(sender_id) != participant for participant in ordered_participants)
+        goal_utilities = await self._load_goal_utilities(world_id) if should_load_goals else {}
+        peer_count = max(1, len([item for item in ordered_participants if str(sender_id) != item]))
 
         if sender_id:
             bindings.append(
@@ -306,7 +314,10 @@ class OrchestratorEngine:
 
             role = self._allocate_role_name(role, bindings)
 
-            weight = self._calculate_weight(relation)
+            relation_weight = self._calculate_weight(relation)
+            goal_utility = float(goal_utilities.get(participant, 0.0))
+            recency_factor = max(0.0, 1.0 - ((order - 1) / float(peer_count)))
+            weight = relation_weight + goal_utility + recency_factor
             bindings.append(
                 {
                     "role": role,
@@ -314,6 +325,9 @@ class OrchestratorEngine:
                     "relationship_type": relation_type or role,
                     "intimacy": float(relation.get("intimacyScore") or 0.0),
                     "commercial": float(relation.get("commercialScore") or 0.0),
+                    "relation_weight": relation_weight,
+                    "goal_utility": goal_utility,
+                    "recency_factor": recency_factor,
                     "weight": weight,
                     "order": order,
                 }
@@ -351,6 +365,31 @@ class OrchestratorEngine:
                         continue
                     relation_map[str(target_id)] = row
                 return relation_map
+        except Exception:
+            return {}
+
+    async def _load_goal_utilities(self, world_id: Optional[str]) -> Dict[str, float]:
+        if not world_id or not settings.world_service_url:
+            return {}
+
+        try:
+            async with httpx.AsyncClient(timeout=self._http_timeout()) as client:
+                response = await client.get(f"{settings.world_service_url}/api/v2/worlds/{world_id}/goals/economy")
+                payload = response.json()
+                rows = payload.get("data", []) if isinstance(payload, dict) else []
+                goal_map: Dict[str, float] = {}
+                for row in rows:
+                    if not isinstance(row, dict):
+                        continue
+                    agent_id = row.get("agentId") or row.get("agent_id")
+                    if not agent_id:
+                        continue
+                    try:
+                        utility = float(row.get("utility") or 0.0)
+                    except Exception:
+                        utility = 0.0
+                    goal_map[str(agent_id)] = utility
+                return goal_map
         except Exception:
             return {}
 

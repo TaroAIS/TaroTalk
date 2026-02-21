@@ -278,5 +278,56 @@ public class WorldServiceTest {
         assertEquals(Boolean.TRUE, rows.get(0).getDryRun());
         verify(worldStateRepository, never()).save(any(WorldState.class));
     }
+
+    @Test
+    void evaluateGoalEconomyDeweightsExhaustedBudget() {
+        WorldStateRepository worldStateRepository = mock(WorldStateRepository.class);
+        WorldEventRepository worldEventRepository = mock(WorldEventRepository.class);
+        StoryArcRepository storyArcRepository = mock(StoryArcRepository.class);
+        AgentGoalRepository agentGoalRepository = mock(AgentGoalRepository.class);
+        MemoryItemRepository memoryItemRepository = mock(MemoryItemRepository.class);
+        WorldBranchScenarioRepository worldBranchScenarioRepository = mock(WorldBranchScenarioRepository.class);
+        WorldCausalEdgeRepository worldCausalEdgeRepository = mock(WorldCausalEdgeRepository.class);
+
+        WorldService service = new WorldService(
+                worldStateRepository,
+                worldEventRepository,
+                storyArcRepository,
+                agentGoalRepository,
+                memoryItemRepository,
+                worldBranchScenarioRepository,
+                worldCausalEdgeRepository,
+                new ObjectMapper()
+        );
+
+        UUID worldId = UUID.randomUUID();
+        when(worldStateRepository.findById(worldId)).thenReturn(Optional.of(new WorldState(worldId)));
+
+        com.tarotalk.world.domain.AgentGoal exhausted = new com.tarotalk.world.domain.AgentGoal(
+                UUID.randomUUID(), worldId, "agent-low-budget", "maintain_continuity", 90);
+        exhausted.setScore(0.9);
+        exhausted.setExpectedReward(0.9);
+        exhausted.setRiskPenalty(0.1);
+        exhausted.setMomentum(0.8);
+        exhausted.setBudget(0.0);
+
+        com.tarotalk.world.domain.AgentGoal healthy = new com.tarotalk.world.domain.AgentGoal(
+                UUID.randomUUID(), worldId, "agent-healthy", "maintain_continuity", 80);
+        healthy.setScore(0.7);
+        healthy.setExpectedReward(0.7);
+        healthy.setRiskPenalty(0.1);
+        healthy.setMomentum(0.6);
+        healthy.setBudget(1.0);
+
+        when(agentGoalRepository.findByWorldId(worldId)).thenReturn(java.util.Arrays.asList(exhausted, healthy));
+
+        List<WorldService.GoalEconomyEntry> rows = service.evaluateGoalEconomy(worldId, null, "maintain continuity");
+        Map<String, Double> utilityByAgent = new java.util.HashMap<>();
+        for (WorldService.GoalEconomyEntry row : rows) {
+            utilityByAgent.put(row.getAgentId(), row.getUtility());
+        }
+
+        assertTrue(utilityByAgent.get("agent-healthy") > utilityByAgent.get("agent-low-budget"));
+    }
 }
 

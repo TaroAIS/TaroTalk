@@ -143,7 +143,14 @@ public class WorldService {
         for (AgentGoal goal : goals) {
             double base = goal.getPriority() / 100.0;
             double recomputed = base * 0.5 + eventDensityScore * 0.3 + freshnessScore * 0.2;
-            goal.setScore(Math.min(1.0, recomputed));
+            double normalizedScore = Math.min(1.0, recomputed);
+            goal.setScore(normalizedScore);
+            goal.setBudget(clamp01(goal.getBudget() <= 0.0 ? 1.0 : goal.getBudget()));
+            double expectedReward = clamp01(normalizedScore * 0.6 + eventDensityScore * 0.25 + freshnessScore * 0.15);
+            goal.setExpectedReward(expectedReward);
+            goal.setRiskPenalty(clamp01(resolveRiskPenalty(goal.getGoalType())));
+            double nextMomentum = clamp01(goal.getMomentum() * 0.6 + normalizedScore * 0.4);
+            goal.setMomentum(nextMomentum);
             goal.setUpdatedAt(Instant.now());
         }
         List<AgentGoal> savedGoals = agentGoalRepository.saveAll(goals);
@@ -161,6 +168,51 @@ public class WorldService {
         state.setUpdatedAt(Instant.now());
         worldStateRepository.save(state);
         return savedGoals;
+    }
+
+    public List<GoalEconomyEntry> listGoalEconomy(UUID worldId) {
+        return evaluateGoalEconomy(worldId, null, null);
+    }
+
+    public List<GoalEconomyEntry> evaluateGoalEconomy(UUID worldId, List<String> actorIds, String objective) {
+        ensureWorldState(worldId);
+        List<AgentGoal> goals = agentGoalRepository.findByWorldId(worldId);
+        if (goals.isEmpty()) {
+            goals = recomputeGoals(worldId);
+        }
+
+        Set<String> actorFilter = new LinkedHashSet<>();
+        if (actorIds != null) {
+            for (String actorId : actorIds) {
+                String cleaned = clean(actorId);
+                if (cleaned != null) {
+                    actorFilter.add(cleaned);
+                }
+            }
+        }
+        String normalizedObjective = clean(objective);
+        List<GoalEconomyEntry> rows = new ArrayList<>();
+        for (AgentGoal goal : goals) {
+            if (goal == null) {
+                continue;
+            }
+            if (!actorFilter.isEmpty() && !actorFilter.contains(clean(goal.getAgentId()))) {
+                continue;
+            }
+            double utility = computeGoalUtility(goal, normalizedObjective);
+            rows.add(new GoalEconomyEntry(goal, utility));
+        }
+        rows.sort(new Comparator<GoalEconomyEntry>() {
+            @Override
+            public int compare(GoalEconomyEntry left, GoalEconomyEntry right) {
+                int utilityCompare = Double.compare(right.getUtility(), left.getUtility());
+                if (utilityCompare != 0) {
+                    return utilityCompare;
+                }
+                return Integer.compare(right.getPriority(), left.getPriority());
+            }
+        });
+        return rows;
     }
 
     public List<WorldCausalEdge> buildCausalGraph(UUID worldId, String traceId) {
@@ -616,6 +668,61 @@ public class WorldService {
         return value;
     }
 
+    private double computeGoalUtility(AgentGoal goal, String objective) {
+        double score = clamp01(goal.getScore());
+        double priority = clamp01(goal.getPriority() / 100.0);
+        double expectedReward = clamp01(goal.getExpectedReward());
+        double riskPenalty = clamp01(goal.getRiskPenalty());
+        double momentum = clamp01(goal.getMomentum());
+        double budget = clamp01(goal.getBudget());
+
+        double utility = score * 0.35 + expectedReward * 0.30 + priority * 0.20 + momentum * 0.15 - riskPenalty * 0.25;
+        utility = Math.max(0.0, utility);
+        utility = utility * (0.6 + budget * 0.4);
+        if (budget <= 0.05) {
+            utility = utility * 0.5;
+        }
+        if (matchesObjective(goal.getGoalType(), objective)) {
+            utility = utility + 0.08;
+        }
+        return clamp01(utility);
+    }
+
+    private double resolveRiskPenalty(String goalType) {
+        String type = safe(goalType).toLowerCase(Locale.ROOT);
+        if (type.contains("rival")) {
+            return 0.45;
+        }
+        if (type.contains("advertiser") || type.contains("commercial")) {
+            return 0.35;
+        }
+        if (type.contains("mentor")) {
+            return 0.15;
+        }
+        return 0.20;
+    }
+
+    private boolean matchesObjective(String goalType, String objective) {
+        if (goalType == null || objective == null) {
+            return false;
+        }
+        String normalizedGoal = goalType.toLowerCase(Locale.ROOT);
+        String normalizedObjective = objective.toLowerCase(Locale.ROOT);
+        if (normalizedObjective.contains(normalizedGoal)) {
+            return true;
+        }
+        String[] parts = normalizedGoal.split("[^a-z0-9]+");
+        for (String part : parts) {
+            if (part.length() < 3) {
+                continue;
+            }
+            if (normalizedObjective.contains(part)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private double safeDouble(Double value) {
         return value == null ? 0.0 : value;
     }
@@ -710,6 +817,90 @@ public class WorldService {
 
         public List<MemoryItem> getMemories() {
             return memories;
+        }
+    }
+
+    public static class GoalEconomyEntry {
+        private final UUID goalId;
+        private final UUID worldId;
+        private final String agentId;
+        private final String goalType;
+        private final int priority;
+        private final String status;
+        private final double score;
+        private final double budget;
+        private final double expectedReward;
+        private final double riskPenalty;
+        private final double momentum;
+        private final double utility;
+        private final Instant updatedAt;
+
+        public GoalEconomyEntry(AgentGoal goal, double utility) {
+            this.goalId = goal.getGoalId();
+            this.worldId = goal.getWorldId();
+            this.agentId = goal.getAgentId();
+            this.goalType = goal.getGoalType();
+            this.priority = goal.getPriority();
+            this.status = goal.getStatus();
+            this.score = goal.getScore();
+            this.budget = goal.getBudget();
+            this.expectedReward = goal.getExpectedReward();
+            this.riskPenalty = goal.getRiskPenalty();
+            this.momentum = goal.getMomentum();
+            this.utility = utility;
+            this.updatedAt = goal.getUpdatedAt();
+        }
+
+        public UUID getGoalId() {
+            return goalId;
+        }
+
+        public UUID getWorldId() {
+            return worldId;
+        }
+
+        public String getAgentId() {
+            return agentId;
+        }
+
+        public String getGoalType() {
+            return goalType;
+        }
+
+        public int getPriority() {
+            return priority;
+        }
+
+        public String getStatus() {
+            return status;
+        }
+
+        public double getScore() {
+            return score;
+        }
+
+        public double getBudget() {
+            return budget;
+        }
+
+        public double getExpectedReward() {
+            return expectedReward;
+        }
+
+        public double getRiskPenalty() {
+            return riskPenalty;
+        }
+
+        public double getMomentum() {
+            return momentum;
+        }
+
+        public double getUtility() {
+            return utility;
+        }
+
+        public Instant getUpdatedAt() {
+            return updatedAt;
         }
     }
 }

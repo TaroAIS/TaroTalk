@@ -411,3 +411,8 @@ TaroTalk 的核心价值在于：将“生成式能力”从演示级 prompt 效
 - Explain endpoint composes replay aggregate and payload-channel extraction in one API.
 - Extraction logic supports flat and nested payload keys (`director_trace.drift_decisions`).
 - Frontend trace page shifted from aggregate-only to explain-view model and now supports multi-channel diagnostics.
+
+## P17 Engineering Notes (2026-02-21)
+- Goal economy utility is computed from score/priority/reward/momentum/risk/budget factors.
+- Budget exhaustion introduces explicit utility deweight behavior.
+- Orchestrator role binding now persists weight factors (`relation_weight`, `goal_utility`, `recency_factor`) for explainability.

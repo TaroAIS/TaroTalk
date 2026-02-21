@@ -86,3 +86,8 @@
 - Added trace explain aggregation endpoint in event-service.
 - Added frontend trace multi-panel debug page (timeline/causal/ranking/safety).
 - Added internal debug visibility gate (`NEXT_PUBLIC_INTERNAL_DEBUG`) for trace entry.
+
+## P17 Goal Economy Update (2026-02-21)
+- Added world goal economy model fields (`budget`, `expected_reward`, `risk_penalty`, `momentum`).
+- Added world goal economy query/evaluate APIs for utility introspection.
+- Orchestrator speaker scoring now mixes relationship, goal utility, and recency factors.

@@ -60,6 +60,25 @@ public class WorldController {
         return ApiResponse.ok(new RecomputeGoalsResponse(worldId, Instant.now(), responses));
     }
 
+    @GetMapping("/{worldId}/goals/economy")
+    public ApiResponse<List<GoalEconomyResponse>> goalEconomy(@PathVariable UUID worldId) {
+        List<WorldService.GoalEconomyEntry> entries = worldService.listGoalEconomy(worldId);
+        return ApiResponse.ok(entries.stream().map(GoalEconomyResponse::from).collect(Collectors.toList()));
+    }
+
+    @PostMapping("/{worldId}/goals/evaluate")
+    public ApiResponse<GoalEconomyEvaluateResponse> evaluateGoalEconomy(@PathVariable UUID worldId,
+                                                                        @RequestBody(required = false) GoalEconomyEvaluateRequest request) {
+        GoalEconomyEvaluateRequest safeRequest = request == null ? new GoalEconomyEvaluateRequest() : request;
+        List<WorldService.GoalEconomyEntry> entries = worldService.evaluateGoalEconomy(
+                worldId,
+                safeRequest.getActorIds(),
+                safeRequest.getObjective()
+        );
+        List<GoalEconomyResponse> responses = entries.stream().map(GoalEconomyResponse::from).collect(Collectors.toList());
+        return ApiResponse.ok(new GoalEconomyEvaluateResponse(worldId, safeRequest.getObjective(), Instant.now(), responses));
+    }
+
     @PostMapping("/{worldId}/memories/compile")
     public ApiResponse<MemoryCompileResponse> compileMemories(@PathVariable UUID worldId,
                                                               @RequestParam(required = false) String ownerId,

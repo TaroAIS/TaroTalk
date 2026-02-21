@@ -391,3 +391,8 @@ TaroTalk 的核心价值在于：将“生成式能力”从演示级 prompt 效
 - Causal edge relation is generated from event order with dedupe checks.
 - `traceId` can constrain edge building to a single trace context.
 - Replay aggregate edge output is currently sequence-based for deterministic output.
+
+## P13 Engineering Notes (2026-02-21)
+- What-if scoring is deterministic hash-based for reproducibility in MVP.
+- Branch persistence includes trace id, policy, reason, and serialized event list.
+- Main world-state write path is intentionally untouched in branch recording.

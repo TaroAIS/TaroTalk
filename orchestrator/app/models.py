@@ -71,3 +71,30 @@ class SimulateResponse(BaseModel):
     status: str
     workflow_id: Optional[str] = None
     scheduled_events: List[Dict[str, Any]] = Field(default_factory=list)
+
+
+class WhatIfRequest(BaseModel):
+    user_id: Optional[str] = None
+    world_id: Optional[str] = None
+    trigger_type: Optional[str] = None
+    objective: Optional[str] = None
+    actors: List[str] = Field(default_factory=list)
+    priority: Optional[int] = None
+    branch_count: int = 3
+    selection_policy: str = "max_score"
+    dry_run: bool = True
+
+
+class WhatIfBranch(BaseModel):
+    branch_id: str
+    score: float
+    events: List[Dict[str, Any]] = Field(default_factory=list)
+    reason: str
+
+
+class WhatIfResponse(BaseModel):
+    branches: List[WhatIfBranch] = Field(default_factory=list)
+    recommended_branch_id: Optional[str] = None
+    selection_policy: str = "max_score"
+    dry_run: bool = True
+    trace_id: Optional[str] = None

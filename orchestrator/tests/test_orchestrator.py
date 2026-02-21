@@ -184,6 +184,25 @@ def test_run_simulation_v2_shape():
     assert len(result["scheduled_events"]) == 2
 
 
+def test_run_what_if_returns_ranked_branches():
+    engine = OrchestratorEngine(max_steps=1, max_tool_calls=1)
+    result = asyncio.get_event_loop().run_until_complete(
+        engine.run_what_if(
+            world_id="world-1",
+            trigger_type="STORY_BEAT",
+            objective="keep continuity",
+            actors=["a1", "a2"],
+            priority=70,
+            branch_count=3,
+            selection_policy="max_score",
+        )
+    )
+    assert len(result["branches"]) == 3
+    assert result["recommended_branch_id"] == result["branches"][0]["branch_id"]
+    assert result["branches"][0]["score"] >= result["branches"][1]["score"]
+    assert result["dry_run"] is True
+
+
 def test_memory_priority_world_then_notification():
     engine = OrchestratorEngine(max_steps=1, max_tool_calls=1)
     role_map = {

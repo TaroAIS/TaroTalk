@@ -76,3 +76,7 @@
 ## P12 Ops Note (2026-02-21)
 - No new external infra required for causal edge MVP.
 - Causal edge table is managed by JPA schema auto-update in current local profile.
+
+## P13 Ops Note (2026-02-21)
+- Branch scenario records are persisted in `world_branch_scenario` table.
+- Branch simulation remains API-first; no user-facing page required in this phase.

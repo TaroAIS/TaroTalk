@@ -2,6 +2,7 @@ package com.tarotalk.world.api;
 
 import com.tarotalk.common.api.ApiResponse;
 import com.tarotalk.world.domain.AgentGoal;
+import com.tarotalk.world.domain.WorldBranchScenario;
 import com.tarotalk.world.domain.MemoryItem;
 import com.tarotalk.world.domain.WorldCausalEdge;
 import com.tarotalk.world.domain.WorldEvent;
@@ -101,5 +102,19 @@ public class WorldController {
                                                                  @RequestParam(required = false) Integer depth) {
         List<WorldCausalEdge> edges = worldService.listCausalEdges(worldId, rootEventId, depth);
         return ApiResponse.ok(edges.stream().map(CausalEdgeResponse::from).collect(Collectors.toList()));
+    }
+
+    @PostMapping("/{worldId}/branches")
+    public ApiResponse<List<BranchScenarioResponse>> saveBranchScenarios(@PathVariable UUID worldId,
+                                                                         @Valid @RequestBody BranchScenarioRequest request) {
+        List<WorldBranchScenario> rows = worldService.saveBranchScenarios(worldId, request);
+        return ApiResponse.ok(rows.stream().map(BranchScenarioResponse::from).collect(Collectors.toList()));
+    }
+
+    @GetMapping("/{worldId}/branches")
+    public ApiResponse<List<BranchScenarioResponse>> listBranchScenarios(@PathVariable UUID worldId,
+                                                                         @RequestParam(required = false) Integer limit) {
+        List<WorldBranchScenario> rows = worldService.listBranchScenarios(worldId, limit);
+        return ApiResponse.ok(rows.stream().map(BranchScenarioResponse::from).collect(Collectors.toList()));
     }
 }

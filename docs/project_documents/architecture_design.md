@@ -66,3 +66,8 @@
 - Added world causal edge persistence (`world_causal_edge`).
 - Introduced explicit causal graph build/query APIs under world V2.
 - Trace aggregate replay now exposes causal edge sequence for debugging and story explanation.
+
+## P13 What-if Timeline Update (2026-02-21)
+- Added orchestrator branch simulation API for counterfactual timeline analysis.
+- Branch outputs are persisted into world-service as read-only scenario records.
+- Dry-run branch execution explicitly avoids primary world-state mutation.

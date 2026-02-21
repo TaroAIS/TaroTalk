@@ -3,9 +3,11 @@ package com.tarotalk.world.service;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tarotalk.common.exception.ApiException;
+import com.tarotalk.world.api.BranchScenarioRequest;
 import com.tarotalk.world.api.WorldEventRequest;
 import com.tarotalk.world.domain.AgentGoal;
 import com.tarotalk.world.domain.MemoryItem;
+import com.tarotalk.world.domain.WorldBranchScenario;
 import com.tarotalk.world.domain.StoryArc;
 import com.tarotalk.world.domain.WorldCausalEdge;
 import com.tarotalk.world.domain.WorldEvent;
@@ -13,6 +15,7 @@ import com.tarotalk.world.domain.WorldState;
 import com.tarotalk.world.repo.AgentGoalRepository;
 import com.tarotalk.world.repo.MemoryItemRepository;
 import com.tarotalk.world.repo.StoryArcRepository;
+import com.tarotalk.world.repo.WorldBranchScenarioRepository;
 import com.tarotalk.world.repo.WorldCausalEdgeRepository;
 import com.tarotalk.world.repo.WorldEventRepository;
 import com.tarotalk.world.repo.WorldStateRepository;
@@ -46,6 +49,7 @@ public class WorldService {
     private final StoryArcRepository storyArcRepository;
     private final AgentGoalRepository agentGoalRepository;
     private final MemoryItemRepository memoryItemRepository;
+    private final WorldBranchScenarioRepository worldBranchScenarioRepository;
     private final WorldCausalEdgeRepository worldCausalEdgeRepository;
     private final ObjectMapper objectMapper;
     private final RestTemplate restTemplate;
@@ -56,6 +60,7 @@ public class WorldService {
                         StoryArcRepository storyArcRepository,
                         AgentGoalRepository agentGoalRepository,
                         MemoryItemRepository memoryItemRepository,
+                        WorldBranchScenarioRepository worldBranchScenarioRepository,
                         WorldCausalEdgeRepository worldCausalEdgeRepository,
                         ObjectMapper objectMapper,
                         RestTemplate restTemplate,
@@ -65,6 +70,7 @@ public class WorldService {
         this.storyArcRepository = storyArcRepository;
         this.agentGoalRepository = agentGoalRepository;
         this.memoryItemRepository = memoryItemRepository;
+        this.worldBranchScenarioRepository = worldBranchScenarioRepository;
         this.worldCausalEdgeRepository = worldCausalEdgeRepository;
         this.objectMapper = objectMapper;
         this.restTemplate = restTemplate;
@@ -76,6 +82,7 @@ public class WorldService {
                         StoryArcRepository storyArcRepository,
                         AgentGoalRepository agentGoalRepository,
                         MemoryItemRepository memoryItemRepository,
+                        WorldBranchScenarioRepository worldBranchScenarioRepository,
                         WorldCausalEdgeRepository worldCausalEdgeRepository,
                         ObjectMapper objectMapper) {
         this(worldStateRepository,
@@ -83,6 +90,7 @@ public class WorldService {
                 storyArcRepository,
                 agentGoalRepository,
                 memoryItemRepository,
+                worldBranchScenarioRepository,
                 worldCausalEdgeRepository,
                 objectMapper,
                 null,
@@ -250,6 +258,41 @@ public class WorldService {
             frontier = nextFrontier;
         }
         return rows;
+    }
+
+    public List<WorldBranchScenario> saveBranchScenarios(UUID worldId, BranchScenarioRequest request) {
+        ensureWorldState(worldId);
+        if (request == null || request.getBranches() == null || request.getBranches().isEmpty()) {
+            throw new ApiException("VALIDATION_ERROR", "branches are required");
+        }
+        String traceId = clean(request.getTraceId());
+        String selectionPolicy = clean(request.getSelectionPolicy());
+        Boolean dryRun = request.getDryRun() == null ? Boolean.TRUE : request.getDryRun();
+        List<WorldBranchScenario> rows = new ArrayList<>();
+        for (BranchScenarioRequest.BranchInput branch : request.getBranches()) {
+            if (branch == null || branch.getBranchId() == null || branch.getBranchId().trim().isEmpty()) {
+                continue;
+            }
+            WorldBranchScenario scenario = new WorldBranchScenario(
+                    UUID.randomUUID(),
+                    worldId,
+                    branch.getBranchId().trim(),
+                    branch.getScore() == null ? 0.0 : branch.getScore()
+            );
+            scenario.setTraceId(traceId);
+            scenario.setSelectionPolicy(selectionPolicy);
+            scenario.setReason(clean(branch.getReason()));
+            scenario.setEventsJson(toPayloadJson(branch.getEvents()));
+            scenario.setDryRun(dryRun);
+            scenario.setCreatedAt(Instant.now());
+            rows.add(worldBranchScenarioRepository.save(scenario));
+        }
+        return rows;
+    }
+
+    public List<WorldBranchScenario> listBranchScenarios(UUID worldId, Integer limit) {
+        int size = resolveLimit(limit);
+        return worldBranchScenarioRepository.findByWorldIdOrderByCreatedAtDesc(worldId, PageRequest.of(0, size));
     }
 
     public MemoryCompileResult compileMemories(UUID worldId, String ownerId, Integer limit, Double minSalience) {

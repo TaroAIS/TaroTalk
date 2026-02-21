@@ -63,3 +63,9 @@
 1. world-service receives build request for causal graph.
 2. service links adjacent world events into `STATE_EFFECT` edges.
 3. trace replay aggregate emits `causal_edges` for UI/ops diagnosis.
+
+## P13 Interaction Flow (2026-02-21)
+1. Client calls orchestrator what-if API.
+2. Orchestrator builds candidate branches and recommendation.
+3. Orchestrator writes branch scenarios to world-service in dry-run mode.
+4. Caller receives branch list without mutating primary timeline.

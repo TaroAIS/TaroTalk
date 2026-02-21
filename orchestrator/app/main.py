@@ -13,6 +13,9 @@ from .models import (
     AgentProfile,
     SimulateRequest,
     SimulateResponse,
+    WhatIfRequest,
+    WhatIfResponse,
+    WhatIfBranch,
 )
 from .tools import tool_registry
 from .orchestrator import OrchestratorEngine
@@ -158,6 +161,11 @@ async def simulate_v2(request: SimulateRequest):
     return await run_simulation(request)
 
 
+@v2_router.post("/simulate/what-if", response_model=WhatIfResponse)
+async def simulate_what_if(request: WhatIfRequest):
+    return await run_what_if(request)
+
+
 async def run_simulation(request: SimulateRequest) -> SimulateResponse:
     actors = list(request.actors or [])
     if request.user_id and request.user_id not in actors:
@@ -174,6 +182,80 @@ async def run_simulation(request: SimulateRequest) -> SimulateResponse:
         workflow_id=str(result.get("workflow_id")) if result.get("workflow_id") else None,
         scheduled_events=result.get("scheduled_events") or [],
     )
+
+
+async def run_what_if(request: WhatIfRequest) -> WhatIfResponse:
+    actors = list(request.actors or [])
+    if request.user_id and request.user_id not in actors:
+        actors.append(request.user_id)
+    result = await engine.run_what_if(
+        world_id=request.world_id,
+        trigger_type=request.trigger_type,
+        objective=request.objective,
+        actors=actors,
+        priority=request.priority,
+        branch_count=request.branch_count,
+        selection_policy=request.selection_policy,
+    )
+    trace_id = str(uuid.uuid4())
+    await persist_branch_scenarios(
+        request.world_id,
+        trace_id,
+        request.selection_policy,
+        request.dry_run,
+        result.get("branches") or [],
+    )
+    branches = [
+        WhatIfBranch(
+            branch_id=str(branch.get("branch_id") or ""),
+            score=float(branch.get("score") or 0.0),
+            events=branch.get("events") or [],
+            reason=str(branch.get("reason") or ""),
+        )
+        for branch in (result.get("branches") or [])
+    ]
+    return WhatIfResponse(
+        branches=branches,
+        recommended_branch_id=str(result.get("recommended_branch_id") or "") or None,
+        selection_policy=str(result.get("selection_policy") or request.selection_policy or "max_score"),
+        dry_run=bool(request.dry_run),
+        trace_id=trace_id,
+    )
+
+
+async def persist_branch_scenarios(
+    world_id: Optional[str],
+    trace_id: str,
+    selection_policy: Optional[str],
+    dry_run: bool,
+    branches: list,
+) -> None:
+    if not world_id or not settings.world_service_url or not branches:
+        return
+    payload = {
+        "traceId": trace_id,
+        "selectionPolicy": selection_policy or "max_score",
+        "dryRun": bool(dry_run),
+        "branches": [
+            {
+                "branchId": branch.get("branch_id"),
+                "score": branch.get("score"),
+                "reason": branch.get("reason"),
+                "events": branch.get("events") or [],
+            }
+            for branch in branches
+            if isinstance(branch, dict)
+        ],
+    }
+    timeout = httpx.Timeout(
+        timeout=settings.http_timeout_seconds,
+        connect=settings.http_connect_timeout_seconds
+    )
+    try:
+        async with httpx.AsyncClient(timeout=timeout) as client:
+            await client.post(f"{settings.world_service_url}/api/v2/worlds/{world_id}/branches", json=payload)
+    except Exception:
+        return
 
 
 app.include_router(router)

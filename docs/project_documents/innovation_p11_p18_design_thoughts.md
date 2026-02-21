@@ -8,3 +8,7 @@
 ## P12 Causal Story Graph
 - Design goal: make storyline transitions auditable as explicit cause-effect links.
 - Current strategy: deterministic sequence graph first, model-based confidence calibration deferred.
+
+## P13 What-if Timeline
+- Design goal: evaluate alternative story evolutions without contaminating mainline state.
+- Design strategy: deterministic branch generation + explicit dry-run persistence for audit.

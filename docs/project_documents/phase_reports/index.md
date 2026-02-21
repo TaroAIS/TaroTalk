@@ -19,6 +19,7 @@
 | P10 | completed | p10_release_report.md | p10_optimization.md | 发布就绪基线、上线/回滚 runbook | 2026-02-21 |
 | P11 | completed | p11_report.md | p11_optimization.md | 记忆编译器（world memories）、编排层优先记忆读取与回退 | 2026-02-21 |
 | P12 | completed | p12_report.md | p12_optimization.md | 因果剧情图（world causal edges）与 replay 聚合增强 | 2026-02-21 |
+| P13 | completed | p13_report.md | p13_optimization.md | what-if 分叉模拟 API 与 world 分支场景记录 | 2026-02-21 |
 
 ## 交付附件
 - `p10_release_runbook.md`

@@ -1,5 +1,6 @@
 from typing import List, Dict, Any, Optional
 import asyncio
+import hashlib
 import json
 import re
 import uuid
@@ -169,6 +170,66 @@ class OrchestratorEngine:
             "workflow_id": workflow_id,
             "scheduled_events": scheduled_events,
             "status": "scheduled",
+        }
+
+    async def run_what_if(
+        self,
+        world_id: Optional[str] = None,
+        trigger_type: Optional[str] = None,
+        objective: Optional[str] = None,
+        actors: Optional[List[str]] = None,
+        priority: Optional[int] = None,
+        branch_count: int = 3,
+        selection_policy: str = "max_score",
+    ) -> Dict[str, Any]:
+        count = max(1, min(int(branch_count or 3), 5))
+        actor_list = [str(actor) for actor in (actors or []) if str(actor).strip()]
+        if not actor_list:
+            actor_list = ["director"]
+
+        base_trigger = trigger_type or "WHAT_IF"
+        base_objective = objective or "evaluate alternate social outcomes"
+        effective_priority = 50 if priority is None else max(1, min(priority, 100))
+
+        branches: List[Dict[str, Any]] = []
+        for idx in range(count):
+            branch_id = f"branch-{idx + 1}"
+            score = self._score_branch(base_objective, actor_list, idx)
+            events = []
+            for event_idx, actor in enumerate(actor_list):
+                events.append(
+                    {
+                        "sequence": event_idx + 1,
+                        "event_type": "WORLD_EVOLUTION",
+                        "trigger_type": base_trigger,
+                        "objective": base_objective,
+                        "actor_id": actor,
+                        "priority": effective_priority,
+                        "world_id": world_id,
+                        "branch_id": branch_id,
+                    }
+                )
+            branches.append(
+                {
+                    "branch_id": branch_id,
+                    "score": score,
+                    "events": events,
+                    "reason": "higher continuity score" if score >= 0.5 else "lower disruption score",
+                }
+            )
+
+        policy = (selection_policy or "max_score").strip().lower()
+        if policy == "min_risk":
+            branches.sort(key=lambda item: (item.get("score", 0.0), item.get("branch_id", "")), reverse=False)
+        else:
+            branches.sort(key=lambda item: (item.get("score", 0.0), item.get("branch_id", "")), reverse=True)
+
+        recommended = branches[0]["branch_id"] if branches else None
+        return {
+            "branches": branches,
+            "recommended_branch_id": recommended,
+            "selection_policy": policy,
+            "dry_run": True,
         }
 
     def _build_system_prompt(
@@ -499,3 +560,9 @@ class OrchestratorEngine:
                 }
             )
         return effects
+
+    def _score_branch(self, objective: str, actors: List[str], branch_index: int) -> float:
+        seed = f"{objective}|{'/'.join(actors)}|{branch_index}".encode("utf-8")
+        digest = hashlib.sha256(seed).hexdigest()
+        value = int(digest[:8], 16) / float(0xFFFFFFFF)
+        return round(max(0.01, min(value, 0.99)), 4)

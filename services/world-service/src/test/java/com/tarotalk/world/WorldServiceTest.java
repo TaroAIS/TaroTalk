@@ -3,6 +3,7 @@ package com.tarotalk.world;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tarotalk.world.api.WorldEventRequest;
 import com.tarotalk.world.domain.MemoryItem;
+import com.tarotalk.world.domain.WorldBranchScenario;
 import com.tarotalk.world.domain.StoryArc;
 import com.tarotalk.world.domain.WorldCausalEdge;
 import com.tarotalk.world.domain.WorldEvent;
@@ -10,6 +11,7 @@ import com.tarotalk.world.domain.WorldState;
 import com.tarotalk.world.repo.AgentGoalRepository;
 import com.tarotalk.world.repo.MemoryItemRepository;
 import com.tarotalk.world.repo.StoryArcRepository;
+import com.tarotalk.world.repo.WorldBranchScenarioRepository;
 import com.tarotalk.world.repo.WorldCausalEdgeRepository;
 import com.tarotalk.world.repo.WorldEventRepository;
 import com.tarotalk.world.repo.WorldStateRepository;
@@ -21,6 +23,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -38,6 +41,7 @@ public class WorldServiceTest {
         StoryArcRepository storyArcRepository = mock(StoryArcRepository.class);
         AgentGoalRepository agentGoalRepository = mock(AgentGoalRepository.class);
         MemoryItemRepository memoryItemRepository = mock(MemoryItemRepository.class);
+        WorldBranchScenarioRepository worldBranchScenarioRepository = mock(WorldBranchScenarioRepository.class);
         WorldCausalEdgeRepository worldCausalEdgeRepository = mock(WorldCausalEdgeRepository.class);
 
         WorldService service = new WorldService(
@@ -46,6 +50,7 @@ public class WorldServiceTest {
                 storyArcRepository,
                 agentGoalRepository,
                 memoryItemRepository,
+                worldBranchScenarioRepository,
                 worldCausalEdgeRepository,
                 new ObjectMapper()
         );
@@ -78,6 +83,7 @@ public class WorldServiceTest {
         StoryArcRepository storyArcRepository = mock(StoryArcRepository.class);
         AgentGoalRepository agentGoalRepository = mock(AgentGoalRepository.class);
         MemoryItemRepository memoryItemRepository = mock(MemoryItemRepository.class);
+        WorldBranchScenarioRepository worldBranchScenarioRepository = mock(WorldBranchScenarioRepository.class);
         WorldCausalEdgeRepository worldCausalEdgeRepository = mock(WorldCausalEdgeRepository.class);
 
         WorldService service = new WorldService(
@@ -86,6 +92,7 @@ public class WorldServiceTest {
                 storyArcRepository,
                 agentGoalRepository,
                 memoryItemRepository,
+                worldBranchScenarioRepository,
                 worldCausalEdgeRepository,
                 new ObjectMapper()
         );
@@ -150,6 +157,7 @@ public class WorldServiceTest {
         StoryArcRepository storyArcRepository = mock(StoryArcRepository.class);
         AgentGoalRepository agentGoalRepository = mock(AgentGoalRepository.class);
         MemoryItemRepository memoryItemRepository = mock(MemoryItemRepository.class);
+        WorldBranchScenarioRepository worldBranchScenarioRepository = mock(WorldBranchScenarioRepository.class);
         WorldCausalEdgeRepository worldCausalEdgeRepository = mock(WorldCausalEdgeRepository.class);
 
         WorldService service = new WorldService(
@@ -158,6 +166,7 @@ public class WorldServiceTest {
                 storyArcRepository,
                 agentGoalRepository,
                 memoryItemRepository,
+                worldBranchScenarioRepository,
                 worldCausalEdgeRepository,
                 new ObjectMapper()
         );
@@ -193,6 +202,7 @@ public class WorldServiceTest {
         StoryArcRepository storyArcRepository = mock(StoryArcRepository.class);
         AgentGoalRepository agentGoalRepository = mock(AgentGoalRepository.class);
         MemoryItemRepository memoryItemRepository = mock(MemoryItemRepository.class);
+        WorldBranchScenarioRepository worldBranchScenarioRepository = mock(WorldBranchScenarioRepository.class);
         WorldCausalEdgeRepository worldCausalEdgeRepository = mock(WorldCausalEdgeRepository.class);
 
         WorldService service = new WorldService(
@@ -201,6 +211,7 @@ public class WorldServiceTest {
                 storyArcRepository,
                 agentGoalRepository,
                 memoryItemRepository,
+                worldBranchScenarioRepository,
                 worldCausalEdgeRepository,
                 new ObjectMapper()
         );
@@ -223,6 +234,49 @@ public class WorldServiceTest {
         assertEquals(1, edges.size());
         assertEquals(e1.getEventId().toString(), edges.get(0).getCauseEventId());
         assertEquals(e2.getEventId().toString(), edges.get(0).getEffectEventId());
+    }
+
+    @Test
+    void saveBranchScenariosPersistsDryRunBranchesWithoutTouchingWorldState() {
+        WorldStateRepository worldStateRepository = mock(WorldStateRepository.class);
+        WorldEventRepository worldEventRepository = mock(WorldEventRepository.class);
+        StoryArcRepository storyArcRepository = mock(StoryArcRepository.class);
+        AgentGoalRepository agentGoalRepository = mock(AgentGoalRepository.class);
+        MemoryItemRepository memoryItemRepository = mock(MemoryItemRepository.class);
+        WorldBranchScenarioRepository worldBranchScenarioRepository = mock(WorldBranchScenarioRepository.class);
+        WorldCausalEdgeRepository worldCausalEdgeRepository = mock(WorldCausalEdgeRepository.class);
+
+        WorldService service = new WorldService(
+                worldStateRepository,
+                worldEventRepository,
+                storyArcRepository,
+                agentGoalRepository,
+                memoryItemRepository,
+                worldBranchScenarioRepository,
+                worldCausalEdgeRepository,
+                new ObjectMapper()
+        );
+
+        UUID worldId = UUID.randomUUID();
+        when(worldStateRepository.findById(worldId)).thenReturn(Optional.of(new WorldState(worldId)));
+        when(worldBranchScenarioRepository.save(any(WorldBranchScenario.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        com.tarotalk.world.api.BranchScenarioRequest request = new com.tarotalk.world.api.BranchScenarioRequest();
+        request.setTraceId("trace-what-if");
+        request.setSelectionPolicy("max_score");
+        request.setDryRun(Boolean.TRUE);
+        com.tarotalk.world.api.BranchScenarioRequest.BranchInput branch = new com.tarotalk.world.api.BranchScenarioRequest.BranchInput();
+        branch.setBranchId("branch-1");
+        branch.setScore(0.88);
+        branch.setReason("best continuity");
+        branch.setEvents(java.util.Arrays.<Map<String, Object>>asList(java.util.Collections.<String, Object>singletonMap("event", "A")));
+        request.setBranches(java.util.Collections.singletonList(branch));
+
+        List<WorldBranchScenario> rows = service.saveBranchScenarios(worldId, request);
+        assertEquals(1, rows.size());
+        assertEquals(Boolean.TRUE, rows.get(0).getDryRun());
+        verify(worldStateRepository, never()).save(any(WorldState.class));
     }
 }
 

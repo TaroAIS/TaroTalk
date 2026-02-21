@@ -56,3 +56,8 @@
 - **推送服务**：集成 APNs/FCM 发送移动推送；集成邮件服务（如 SendGrid）和短信网关。
 - **支付与广告平台**（可选）：若需内购或广告变现，可接入支付宝/微信支付、广告平台，并通过第三方 SDK 集成。
 - **社交分享**：调用系统分享 SDK 转发动态。
+
+## P11 Memory Compiler Update (2026-02-21)
+- Added world memory domain (`memory_item`) in world-service.
+- Introduced compile/list APIs to persist durable social memories from world events and event logs.
+- Orchestrator now reads world memories first, then falls back to notification memories.

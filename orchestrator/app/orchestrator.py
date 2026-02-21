@@ -45,7 +45,7 @@ class OrchestratorEngine:
         director_rounds: List[Dict[str, Any]] = []
         bindings = await self._build_role_bindings(sender_id, participants or [])
         role_map = {item["role"]: item["user_id"] for item in bindings}
-        memories = await self._load_memories(role_map)
+        memories = await self._load_memories(role_map, world_id)
 
         for round_index in range(rounds):
             speakers = pick_round_speakers(bindings, round_index)
@@ -277,16 +277,31 @@ class OrchestratorEngine:
         interactions = float(relation.get("interactionCount") or 0.0)
         return intimacy * 0.7 + commercial * 0.2 + min(interactions / 50.0, 1.0) * 0.1
 
-    async def _load_memories(self, role_map: Dict[str, str]) -> Dict[str, List[Dict[str, str]]]:
-        if not settings.notification_service_url:
-            return {}
+    async def _load_memories(self, role_map: Dict[str, str], world_id: Optional[str] = None) -> Dict[str, List[Dict[str, str]]]:
         memories: Dict[str, List[Dict[str, str]]] = {}
+
         async with httpx.AsyncClient(timeout=self._http_timeout()) as client:
-            tasks = [self._fetch_feed_memories(client, role, user_id) for role, user_id in role_map.items()]
-            results = await asyncio.gather(*tasks)
-            for role, memory in results:
-                if memory:
-                    memories[role] = memory
+            if world_id and settings.world_service_url:
+                world_tasks = [
+                    self._fetch_world_memories(client, role, user_id, world_id)
+                    for role, user_id in role_map.items()
+                ]
+                world_results = await asyncio.gather(*world_tasks)
+                for role, rows in world_results:
+                    if rows:
+                        memories[role] = rows
+
+            if settings.notification_service_url:
+                fallback_tasks = []
+                for role, user_id in role_map.items():
+                    if role in memories and memories[role]:
+                        continue
+                    fallback_tasks.append(self._fetch_feed_memories(client, role, user_id))
+                fallback_results = await asyncio.gather(*fallback_tasks)
+                for role, rows in fallback_results:
+                    if rows:
+                        memories[role] = rows
+
         return memories
 
     def _http_timeout(self) -> httpx.Timeout:
@@ -324,6 +339,47 @@ class OrchestratorEngine:
                 memories.append(memory)
                 if len(memories) >= 5:
                     break
+            return role, memories
+        except Exception:
+            return role, []
+
+    async def _fetch_world_memories(
+        self,
+        client: httpx.AsyncClient,
+        role: str,
+        user_id: str,
+        world_id: str,
+        limit: int = 5,
+    ) -> Any:
+        try:
+            params = {
+                "ownerId": user_id,
+                "limit": limit,
+                "minSalience": 0.1,
+            }
+            res = await client.get(f"{settings.world_service_url}/api/v2/worlds/{world_id}/memories", params=params)
+            payload = res.json()
+            items = payload.get("data", []) if isinstance(payload, dict) else []
+            memories: List[Dict[str, str]] = []
+            for item in items:
+                if not isinstance(item, dict):
+                    continue
+                summary = str(item.get("summary") or "").strip()
+                if not summary:
+                    continue
+                source_event_id = str(item.get("sourceEventId") or "")
+                salience = float(item.get("salience") or 0.0)
+                memories.append(
+                    {
+                        "type": "WORLD_MEMORY",
+                        "feed_id": "",
+                        "author_id": str(item.get("ownerId") or user_id),
+                        "actor_id": str(item.get("ownerId") or user_id),
+                        "summary": summary,
+                        "source_event_id": source_event_id,
+                        "salience": str(round(salience, 4)),
+                    }
+                )
             return role, memories
         except Exception:
             return role, []

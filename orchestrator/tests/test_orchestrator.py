@@ -50,7 +50,7 @@ def test_run_chat_multi_step(monkeypatch):
             }
         }
 
-    async def fake_load_memories(role_map):
+    async def fake_load_memories(role_map, world_id=None):
         return {
             "self-agent": [{"type": "FEED_CREATED", "feed_id": "f1", "actor_id": "u2", "summary": "first"}],
             "friend": [{"type": "FEED_LIKED", "feed_id": "f2", "actor_id": "u1", "summary": "second"}],
@@ -108,7 +108,7 @@ def test_director_roles(monkeypatch):
             },
         }
 
-    async def fake_load_memories(role_map):
+    async def fake_load_memories(role_map, world_id=None):
         return {
             "self-agent": [{"type": "FEED_CREATED", "feed_id": "f1", "actor_id": "u2", "summary": "s1"}],
             "mentor": [{"type": "FEED_LIKED", "feed_id": "f2", "actor_id": "u3", "summary": "s2"}],
@@ -144,7 +144,7 @@ def test_chat_outputs_director_trace_and_state_effects(monkeypatch):
     async def fake_load_relationship_map(sender_id):
         return {}
 
-    async def fake_load_memories(role_map):
+    async def fake_load_memories(role_map, world_id=None):
         return {}
 
     monkeypatch.setattr(engine, "_load_relationship_map", fake_load_relationship_map)
@@ -182,3 +182,44 @@ def test_run_simulation_v2_shape():
     assert result["status"] == "scheduled"
     assert result["workflow_id"]
     assert len(result["scheduled_events"]) == 2
+
+
+def test_memory_priority_world_then_notification():
+    engine = OrchestratorEngine(max_steps=1, max_tool_calls=1)
+    role_map = {
+        "self-agent": "u1",
+        "friend": "u2",
+    }
+
+    class DummyClient:
+        pass
+
+    async def fake_world(client, role, user_id, world_id, limit=5):
+        if role == "self-agent":
+            return role, [{"type": "WORLD_MEMORY", "summary": "from world"}]
+        return role, []
+
+    async def fake_feed(client, role, user_id, limit=10):
+        return role, [{"type": "FEED_CREATED", "summary": "from feed"}]
+
+    monkeypatch = __import__("pytest").MonkeyPatch()
+    monkeypatch.setattr(engine, "_fetch_world_memories", fake_world)
+    monkeypatch.setattr(engine, "_fetch_feed_memories", fake_feed)
+    monkeypatch.setattr("httpx.AsyncClient", lambda *args, **kwargs: DummyAsyncClientContext(DummyClient()))
+    try:
+        memories = asyncio.get_event_loop().run_until_complete(engine._load_memories(role_map, "w1"))
+        assert memories["self-agent"][0]["type"] == "WORLD_MEMORY"
+        assert memories["friend"][0]["type"] == "FEED_CREATED"
+    finally:
+        monkeypatch.undo()
+
+
+class DummyAsyncClientContext:
+    def __init__(self, client):
+        self.client = client
+
+    async def __aenter__(self):
+        return self.client
+
+    async def __aexit__(self, exc_type, exc, tb):
+        return False

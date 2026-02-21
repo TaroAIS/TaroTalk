@@ -119,3 +119,11 @@ type Subscription {
 ```
 
 GraphQL 通过单一端点 `/graphql`，支持查询（Query）、变更（Mutation）和实时订阅（Subscription）；后端使用 Apollo Server 或 Spring GraphQL 实现，并通过 WebSocket 提供订阅功能。
+
+## P11 API Additions (2026-02-21)
+- `POST /api/v2/worlds/{worldId}/memories/compile`
+  - Optional query: `ownerId`, `limit`, `minSalience`.
+  - Returns compiled memory snapshot with dedup counters.
+- `GET /api/v2/worlds/{worldId}/memories`
+  - Optional query: `ownerId`, `limit`, `minSalience`.
+  - Returns active memory list ordered by salience.

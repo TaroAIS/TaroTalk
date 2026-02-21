@@ -380,3 +380,9 @@ TaroTalk 的核心价值在于：将“生成式能力”从演示级 prompt 效
 - 用一致性与安全治理保证系统可持续演进。
 
 这也是本项目在后端与 AI 工程化维度上的核心技术贡献。
+
+## P11 Engineering Notes (2026-02-21)
+- Memory compile path consumes world events and event-log payload summaries.
+- Dedupe key: `world_id + owner_id + source_event_id + summary_hash`.
+- Salience decay is applied on read/compile path; expired rows are filtered.
+- Auth test baseline hardened by mocking `UserProfileClient` to avoid external dependency in gate runs.

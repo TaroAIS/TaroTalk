@@ -43,3 +43,12 @@
 - 后端：JUnit5, Mockito, Spring Boot Test, Testcontainers, Gatling。
 - 性能：JMeter, Locust。
 - 安全：OWASP ZAP, Burp Suite。
+
+## P11 Test Additions (2026-02-21)
+- world-service:
+  - memory dedupe test.
+  - expired memory filtering test.
+- orchestrator:
+  - world memory priority and fallback test.
+- auth-service:
+  - controller test isolated from external user-service dependency.

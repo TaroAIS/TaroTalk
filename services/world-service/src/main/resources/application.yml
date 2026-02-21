@@ -18,6 +18,17 @@ spring:
         type:
           preferred_uuid_jdbc_type: CHAR
 
+integrations:
+  event-service:
+    base-url: http://localhost:8091
+
+http:
+  client:
+    connect-timeout-ms: 3000
+    read-timeout-ms: 5000
+    max-attempts: 3
+    retry-backoff-ms: 150
+
 management:
   endpoints:
     web:

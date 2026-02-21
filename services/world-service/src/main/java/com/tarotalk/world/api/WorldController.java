@@ -2,6 +2,7 @@ package com.tarotalk.world.api;
 
 import com.tarotalk.common.api.ApiResponse;
 import com.tarotalk.world.domain.AgentGoal;
+import com.tarotalk.world.domain.MemoryItem;
 import com.tarotalk.world.domain.WorldEvent;
 import com.tarotalk.world.service.WorldService;
 import org.springframework.validation.annotation.Validated;
@@ -55,5 +56,34 @@ public class WorldController {
         List<AgentGoal> goals = worldService.recomputeGoals(worldId);
         List<GoalResponse> responses = goals.stream().map(GoalResponse::from).collect(Collectors.toList());
         return ApiResponse.ok(new RecomputeGoalsResponse(worldId, Instant.now(), responses));
+    }
+
+    @PostMapping("/{worldId}/memories/compile")
+    public ApiResponse<MemoryCompileResponse> compileMemories(@PathVariable UUID worldId,
+                                                              @RequestParam(required = false) String ownerId,
+                                                              @RequestParam(required = false) Integer limit,
+                                                              @RequestParam(required = false) Double minSalience) {
+        WorldService.MemoryCompileResult result = worldService.compileMemories(worldId, ownerId, limit, minSalience);
+        List<MemoryItemResponse> memories = result.getMemories().stream()
+                .map(MemoryItemResponse::from)
+                .collect(Collectors.toList());
+        return ApiResponse.ok(new MemoryCompileResponse(
+                result.getWorldId(),
+                result.getOwnerId(),
+                result.getCreatedCount(),
+                result.getDeduplicatedCount(),
+                memories.size(),
+                result.getCompiledAt(),
+                memories
+        ));
+    }
+
+    @GetMapping("/{worldId}/memories")
+    public ApiResponse<List<MemoryItemResponse>> listMemories(@PathVariable UUID worldId,
+                                                              @RequestParam(required = false) String ownerId,
+                                                              @RequestParam(required = false) Integer limit,
+                                                              @RequestParam(required = false) Double minSalience) {
+        List<MemoryItem> memories = worldService.listMemories(worldId, ownerId, limit, minSalience);
+        return ApiResponse.ok(memories.stream().map(MemoryItemResponse::from).collect(Collectors.toList()));
     }
 }

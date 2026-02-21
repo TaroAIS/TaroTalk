@@ -63,3 +63,12 @@
 ### 持续优化
 - 根据业务增长定期评估容量规划，优化服务分片数量、缓存策略和数据库索引。
 - 收集用户反馈并根据数据分析调整推荐算法和 UI 交互。
+
+## P11 Runtime Config (2026-02-21)
+- world-service now exposes event-service integration key:
+  - `integrations.event-service.base-url`
+- world-service HTTP client settings:
+  - `http.client.connect-timeout-ms`
+  - `http.client.read-timeout-ms`
+  - `http.client.max-attempts`
+  - `http.client.retry-backoff-ms`

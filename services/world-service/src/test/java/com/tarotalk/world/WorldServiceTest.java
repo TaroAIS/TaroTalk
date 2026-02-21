@@ -2,21 +2,28 @@ package com.tarotalk.world;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tarotalk.world.api.WorldEventRequest;
+import com.tarotalk.world.domain.MemoryItem;
 import com.tarotalk.world.domain.StoryArc;
 import com.tarotalk.world.domain.WorldEvent;
 import com.tarotalk.world.domain.WorldState;
 import com.tarotalk.world.repo.AgentGoalRepository;
+import com.tarotalk.world.repo.MemoryItemRepository;
 import com.tarotalk.world.repo.StoryArcRepository;
 import com.tarotalk.world.repo.WorldEventRepository;
 import com.tarotalk.world.repo.WorldStateRepository;
 import com.tarotalk.world.service.WorldService;
 import org.junit.jupiter.api.Test;
+import org.springframework.data.domain.Pageable;
 
+import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
@@ -28,12 +35,14 @@ public class WorldServiceTest {
         WorldEventRepository worldEventRepository = mock(WorldEventRepository.class);
         StoryArcRepository storyArcRepository = mock(StoryArcRepository.class);
         AgentGoalRepository agentGoalRepository = mock(AgentGoalRepository.class);
+        MemoryItemRepository memoryItemRepository = mock(MemoryItemRepository.class);
 
         WorldService service = new WorldService(
                 worldStateRepository,
                 worldEventRepository,
                 storyArcRepository,
                 agentGoalRepository,
+                memoryItemRepository,
                 new ObjectMapper()
         );
 
@@ -56,6 +65,117 @@ public class WorldServiceTest {
         verify(worldStateRepository, atLeastOnce()).save(any(WorldState.class));
         assertEquals(1L, existing.getVersion());
         verify(storyArcRepository, times(1)).findByWorldIdOrderByUpdatedAtDesc(eq(worldId));
+    }
+
+    @Test
+    void compileMemoriesDeduplicatesByOwnerAndSourceAndSummaryHash() {
+        WorldStateRepository worldStateRepository = mock(WorldStateRepository.class);
+        WorldEventRepository worldEventRepository = mock(WorldEventRepository.class);
+        StoryArcRepository storyArcRepository = mock(StoryArcRepository.class);
+        AgentGoalRepository agentGoalRepository = mock(AgentGoalRepository.class);
+        MemoryItemRepository memoryItemRepository = mock(MemoryItemRepository.class);
+
+        WorldService service = new WorldService(
+                worldStateRepository,
+                worldEventRepository,
+                storyArcRepository,
+                agentGoalRepository,
+                memoryItemRepository,
+                new ObjectMapper()
+        );
+
+        UUID worldId = UUID.randomUUID();
+        WorldState state = new WorldState(worldId);
+        when(worldStateRepository.findById(worldId)).thenReturn(Optional.of(state));
+
+        WorldEvent event = new WorldEvent(UUID.randomUUID(), worldId, "WORLD_EVOLUTION");
+        event.setActorId("u1");
+        event.setPayloadJson("{\"summary\":\"alice posted\"}");
+        when(worldEventRepository.findByWorldIdOrderByCreatedAtDesc(eq(worldId), any(Pageable.class)))
+                .thenReturn(Collections.singletonList(event));
+
+        List<MemoryItem> store = new ArrayList<>();
+        when(memoryItemRepository.save(any(MemoryItem.class))).thenAnswer(invocation -> {
+            MemoryItem saved = invocation.getArgument(0);
+            store.removeIf(item -> item.getMemoryId().equals(saved.getMemoryId()));
+            store.add(saved);
+            return saved;
+        });
+        when(memoryItemRepository.findFirstByWorldIdAndOwnerIdAndSourceEventIdAndSummaryHash(
+                eq(worldId), any(String.class), any(String.class), any(String.class)))
+                .thenAnswer(invocation -> {
+                    String owner = invocation.getArgument(1);
+                    String sourceEventId = invocation.getArgument(2);
+                    String summaryHash = invocation.getArgument(3);
+                    return store.stream()
+                            .filter(item -> worldId.equals(item.getWorldId()))
+                            .filter(item -> owner.equals(item.getOwnerId()))
+                            .filter(item -> sourceEventId.equals(item.getSourceEventId()))
+                            .filter(item -> summaryHash.equals(item.getSummaryHash()))
+                            .findFirst();
+                });
+        when(memoryItemRepository.findByWorldIdAndOwnerIdOrderByUpdatedAtDesc(eq(worldId), any(String.class), any(Pageable.class)))
+                .thenAnswer(invocation -> {
+                    String owner = invocation.getArgument(1);
+                    List<MemoryItem> rows = new ArrayList<>();
+                    for (MemoryItem item : store) {
+                        if (worldId.equals(item.getWorldId()) && owner.equals(item.getOwnerId())) {
+                            rows.add(item);
+                        }
+                    }
+                    return rows;
+                });
+        when(memoryItemRepository.findByWorldIdOrderByUpdatedAtDesc(eq(worldId), any(Pageable.class)))
+                .thenAnswer(invocation -> new ArrayList<>(store));
+
+        WorldService.MemoryCompileResult first = service.compileMemories(worldId, "u1", 10, 0.05);
+        WorldService.MemoryCompileResult second = service.compileMemories(worldId, "u1", 10, 0.05);
+
+        assertEquals(1, first.getCreatedCount());
+        assertEquals(0, first.getDeduplicatedCount());
+        assertEquals(0, second.getCreatedCount());
+        assertEquals(1, second.getDeduplicatedCount());
+    }
+
+    @Test
+    void listMemoriesFiltersExpiredRows() {
+        WorldStateRepository worldStateRepository = mock(WorldStateRepository.class);
+        WorldEventRepository worldEventRepository = mock(WorldEventRepository.class);
+        StoryArcRepository storyArcRepository = mock(StoryArcRepository.class);
+        AgentGoalRepository agentGoalRepository = mock(AgentGoalRepository.class);
+        MemoryItemRepository memoryItemRepository = mock(MemoryItemRepository.class);
+
+        WorldService service = new WorldService(
+                worldStateRepository,
+                worldEventRepository,
+                storyArcRepository,
+                agentGoalRepository,
+                memoryItemRepository,
+                new ObjectMapper()
+        );
+
+        UUID worldId = UUID.randomUUID();
+        MemoryItem valid = new MemoryItem(UUID.randomUUID(), worldId, "u1", "e1", "still useful");
+        valid.setSummaryHash("hash-1");
+        valid.setSalience(0.8);
+        valid.setDecayRate(0.01);
+        valid.setUpdatedAt(Instant.now().minusSeconds(120));
+        valid.setExpiresAt(Instant.now().plusSeconds(3600));
+
+        MemoryItem expired = new MemoryItem(UUID.randomUUID(), worldId, "u1", "e2", "old");
+        expired.setSummaryHash("hash-2");
+        expired.setSalience(0.9);
+        expired.setDecayRate(0.01);
+        expired.setUpdatedAt(Instant.now().minusSeconds(120));
+        expired.setExpiresAt(Instant.now().minusSeconds(10));
+
+        when(memoryItemRepository.findByWorldIdOrderByUpdatedAtDesc(eq(worldId), any(Pageable.class)))
+                .thenReturn(java.util.Arrays.asList(valid, expired));
+        when(memoryItemRepository.save(any(MemoryItem.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        List<MemoryItem> rows = service.listMemories(worldId, null, 10, 0.05);
+        assertEquals(1, rows.size());
+        assertTrue(rows.get(0).getSummary().contains("still useful"));
     }
 }
 

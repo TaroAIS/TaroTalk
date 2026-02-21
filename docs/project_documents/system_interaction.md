@@ -52,3 +52,9 @@
 - 消息和事件写入采用异步队列 + 重试机制，防止单点故障导致数据丢失。
 - 使用事务与幂等设计确保重复请求不会产生副作用。
 - 定期进行灾难恢复演练，验证数据库备份和恢复流程。
+
+## P11 Interaction Flow (2026-02-21)
+1. Client/orchestrator triggers `POST /api/v2/worlds/{worldId}/memories/compile`.
+2. world-service compiles memory items from `world_event` and `event_log` data.
+3. Orchestrator chat reads `GET /api/v2/worlds/{worldId}/memories?ownerId=...` first.
+4. If world memory is empty/unavailable, orchestrator falls back to notification feed memories.

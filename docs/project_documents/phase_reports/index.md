@@ -17,6 +17,7 @@
 | P8 | completed | p8_report.md | p8_optimization.md | 聚合回放 API、前端 trace 回放页 | 2026-02-21 |
 | P9 | completed | p9_report.md | p9_optimization.md | 超时重试参数化、索引增强、调度退避、编排工具韧性 | 2026-02-21 |
 | P10 | completed | p10_release_report.md | p10_optimization.md | 发布就绪基线、上线/回滚 runbook | 2026-02-21 |
+| P11 | completed | p11_report.md | p11_optimization.md | 记忆编译器（world memories）、编排层优先记忆读取与回退 | 2026-02-21 |
 
 ## 交付附件
 - `p10_release_runbook.md`

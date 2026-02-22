@@ -467,18 +467,13 @@ public class WorldService {
         }
         List<MemorySeed> seeds = new ArrayList<>();
         try {
-            String endpoint = eventServiceUrl + "/api/v2/events?limit=" + limit;
-            Map<String, Object> response = restTemplate.getForObject(endpoint, Map.class);
-            if (response == null || !(response.get("data") instanceof List)) {
-                return seeds;
+            List<Map<String, Object>> rows = fetchEventLogRows(limit, "WORLD", worldId == null ? null : worldId.toString());
+            if (rows.isEmpty()) {
+                rows = fetchEventLogRows(limit, null, null);
             }
-            for (Object row : (List<?>) response.get("data")) {
-                if (!(row instanceof Map)) {
+            for (Map<String, Object> event : rows) {
+                if (event == null) {
                     continue;
-                }
-                Map<String, Object> event = new HashMap<>();
-                for (Map.Entry<?, ?> entry : ((Map<?, ?>) row).entrySet()) {
-                    event.put(String.valueOf(entry.getKey()), entry.getValue());
                 }
                 String actorId = clean(asText(event.get("actorId")));
                 String resolvedOwner = ownerId == null ? safeOwner(actorId) : ownerId;
@@ -496,6 +491,33 @@ public class WorldService {
             return seeds;
         }
         return seeds;
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<Map<String, Object>> fetchEventLogRows(int limit, String entityType, String entityId) {
+        String endpoint = eventServiceUrl + "/api/v2/events?limit=" + limit;
+        if (entityType != null && !entityType.trim().isEmpty()) {
+            endpoint += "&entityType=" + entityType.trim();
+        }
+        if (entityId != null && !entityId.trim().isEmpty()) {
+            endpoint += "&entityId=" + entityId.trim();
+        }
+        Map<String, Object> response = restTemplate.getForObject(endpoint, Map.class);
+        if (response == null || !(response.get("data") instanceof List)) {
+            return new ArrayList<>();
+        }
+        List<Map<String, Object>> rows = new ArrayList<>();
+        for (Object row : (List<?>) response.get("data")) {
+            if (!(row instanceof Map)) {
+                continue;
+            }
+            Map<String, Object> event = new HashMap<>();
+            for (Map.Entry<?, ?> entry : ((Map<?, ?>) row).entrySet()) {
+                event.put(String.valueOf(entry.getKey()), entry.getValue());
+            }
+            rows.add(event);
+        }
+        return rows;
     }
 
     private String summarizeWorldEvent(WorldEvent event) {

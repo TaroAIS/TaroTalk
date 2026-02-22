@@ -18,6 +18,7 @@ import com.tarotalk.world.repo.WorldStateRepository;
 import com.tarotalk.world.service.WorldService;
 import org.junit.jupiter.api.Test;
 import org.springframework.data.domain.Pageable;
+import org.springframework.web.client.RestTemplate;
 
 import java.time.Instant;
 import java.util.ArrayList;
@@ -30,6 +31,7 @@ import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
@@ -328,6 +330,77 @@ public class WorldServiceTest {
         }
 
         assertTrue(utilityByAgent.get("agent-healthy") > utilityByAgent.get("agent-low-budget"));
+    }
+
+    @Test
+    void compileMemoriesFallsBackToLegacyEventQueryWhenWorldScopedEventLogIsEmpty() {
+        WorldStateRepository worldStateRepository = mock(WorldStateRepository.class);
+        WorldEventRepository worldEventRepository = mock(WorldEventRepository.class);
+        StoryArcRepository storyArcRepository = mock(StoryArcRepository.class);
+        AgentGoalRepository agentGoalRepository = mock(AgentGoalRepository.class);
+        MemoryItemRepository memoryItemRepository = mock(MemoryItemRepository.class);
+        WorldBranchScenarioRepository worldBranchScenarioRepository = mock(WorldBranchScenarioRepository.class);
+        WorldCausalEdgeRepository worldCausalEdgeRepository = mock(WorldCausalEdgeRepository.class);
+        RestTemplate restTemplate = mock(RestTemplate.class);
+
+        WorldService service = new WorldService(
+                worldStateRepository,
+                worldEventRepository,
+                storyArcRepository,
+                agentGoalRepository,
+                memoryItemRepository,
+                worldBranchScenarioRepository,
+                worldCausalEdgeRepository,
+                new ObjectMapper(),
+                restTemplate,
+                "http://event"
+        );
+
+        UUID worldId = UUID.randomUUID();
+        when(worldStateRepository.findById(worldId)).thenReturn(Optional.of(new WorldState(worldId)));
+        when(worldEventRepository.findByWorldIdOrderByCreatedAtDesc(eq(worldId), any(Pageable.class)))
+                .thenReturn(Collections.<WorldEvent>emptyList());
+
+        when(restTemplate.getForObject(anyString(), eq(Map.class))).thenAnswer(invocation -> {
+            String url = invocation.getArgument(0);
+            if (url.contains("entityType=WORLD") && url.contains("entityId=" + worldId.toString())) {
+                return Collections.<String, Object>singletonMap("data", Collections.emptyList());
+            }
+            Map<String, Object> fallbackEvent = new java.util.HashMap<>();
+            fallbackEvent.put("eventId", "evt-1");
+            fallbackEvent.put("eventType", "CHAT_MESSAGE_CREATED");
+            fallbackEvent.put("actorId", "u1");
+            fallbackEvent.put("payloadJson", "{\"summary\":\"fallback memory\"}");
+            return Collections.<String, Object>singletonMap("data", Collections.singletonList(fallbackEvent));
+        });
+
+        List<MemoryItem> store = new ArrayList<>();
+        when(memoryItemRepository.save(any(MemoryItem.class))).thenAnswer(invocation -> {
+            MemoryItem saved = invocation.getArgument(0);
+            store.removeIf(item -> item.getMemoryId().equals(saved.getMemoryId()));
+            store.add(saved);
+            return saved;
+        });
+        when(memoryItemRepository.findFirstByWorldIdAndOwnerIdAndSourceEventIdAndSummaryHash(
+                eq(worldId), any(String.class), any(String.class), any(String.class)))
+                .thenAnswer(invocation -> {
+                    String owner = invocation.getArgument(1);
+                    String sourceEventId = invocation.getArgument(2);
+                    String summaryHash = invocation.getArgument(3);
+                    return store.stream()
+                            .filter(item -> worldId.equals(item.getWorldId()))
+                            .filter(item -> owner.equals(item.getOwnerId()))
+                            .filter(item -> sourceEventId.equals(item.getSourceEventId()))
+                            .filter(item -> summaryHash.equals(item.getSummaryHash()))
+                            .findFirst();
+                });
+        when(memoryItemRepository.findByWorldIdAndOwnerIdOrderByUpdatedAtDesc(eq(worldId), any(String.class), any(Pageable.class)))
+                .thenAnswer(invocation -> new ArrayList<>(store));
+
+        WorldService.MemoryCompileResult result = service.compileMemories(worldId, "u1", 10, 0.05);
+
+        assertEquals(1, result.getCreatedCount());
+        verify(restTemplate, atLeast(2)).getForObject(anyString(), eq(Map.class));
     }
 }
 

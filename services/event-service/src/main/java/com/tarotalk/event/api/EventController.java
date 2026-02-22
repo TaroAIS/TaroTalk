@@ -9,7 +9,6 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -17,6 +16,7 @@ import javax.validation.Valid;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -25,10 +25,11 @@ import java.util.stream.Collectors;
 @Validated
 public class EventController {
     private final EventService eventService;
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final ObjectMapper objectMapper;
 
-    public EventController(EventService eventService) {
+    public EventController(EventService eventService, ObjectMapper objectMapper) {
         this.eventService = eventService;
+        this.objectMapper = objectMapper;
     }
 
     @PostMapping("/internal/events")
@@ -79,16 +80,17 @@ public class EventController {
                 .collect(Collectors.toList());
 
         TraceAggregateResponse aggregate = buildAggregate(traceId, rows);
+        Map<EventResponse, Map<String, Object>> payloads = parsePayloads(rows);
         TraceExplainResponse response = new TraceExplainResponse(traceId, rows);
         response.setEventTypeCounts(aggregate.getEventTypeCounts());
         response.setSourceServiceCounts(aggregate.getSourceServiceCounts());
         response.setCausalEdges(aggregate.getCausalEdges());
-        response.setDirectorTrace(extractValues(rows, "director_trace", "DIRECTOR_TRACE"));
-        response.setToolCalls(extractValues(rows, "tool_calls", "TOOL_CALL"));
-        response.setStateEffects(extractValues(rows, "state_effects", "STATE_EFFECT"));
-        response.setBanditDecisions(extractValues(rows, "bandit_decisions", "BANDIT"));
-        response.setDriftDecisions(extractDriftDecisions(rows));
-        response.setSafetyReport(extractValues(rows, "safety_report", "SAFETY"));
+        response.setDirectorTrace(extractValues(rows, payloads, "director_trace", "DIRECTOR_TRACE"));
+        response.setToolCalls(extractValues(rows, payloads, "tool_calls", "TOOL_CALL"));
+        response.setStateEffects(extractValues(rows, payloads, "state_effects", "STATE_EFFECT"));
+        response.setBanditDecisions(extractValues(rows, payloads, "bandit_decisions", "BANDIT"));
+        response.setDriftDecisions(extractDriftDecisions(rows, payloads));
+        response.setSafetyReport(extractValues(rows, payloads, "safety_report", "SAFETY"));
         return ApiResponse.ok(response);
     }
 
@@ -127,13 +129,30 @@ public class EventController {
         return edges;
     }
 
-    private List<Object> extractValues(List<EventResponse> rows, String key, String eventTypeHint) {
+    private Map<EventResponse, Map<String, Object>> parsePayloads(List<EventResponse> rows) {
+        Map<EventResponse, Map<String, Object>> payloads = new IdentityHashMap<>();
+        if (rows == null || rows.isEmpty()) {
+            return payloads;
+        }
+        for (EventResponse row : rows) {
+            payloads.put(row, parsePayload(row.getPayloadJson()));
+        }
+        return payloads;
+    }
+
+    private List<Object> extractValues(List<EventResponse> rows,
+                                       Map<EventResponse, Map<String, Object>> payloads,
+                                       String key,
+                                       String eventTypeHint) {
         List<Object> values = new ArrayList<>();
         if (rows == null || rows.isEmpty()) {
             return values;
         }
         for (EventResponse row : rows) {
-            Map<String, Object> payload = parsePayload(row.getPayloadJson());
+            Map<String, Object> payload = payloads.get(row);
+            if (payload == null) {
+                payload = new HashMap<>();
+            }
             appendValue(values, payload.get(key));
             if (eventTypeHint != null
                     && row.getEventType() != null
@@ -145,10 +164,13 @@ public class EventController {
         return values;
     }
 
-    private List<Object> extractDriftDecisions(List<EventResponse> rows) {
-        List<Object> values = extractValues(rows, "drift_decisions", "DRIFT");
+    private List<Object> extractDriftDecisions(List<EventResponse> rows, Map<EventResponse, Map<String, Object>> payloads) {
+        List<Object> values = extractValues(rows, payloads, "drift_decisions", "DRIFT");
         for (EventResponse row : rows) {
-            Map<String, Object> payload = parsePayload(row.getPayloadJson());
+            Map<String, Object> payload = payloads.get(row);
+            if (payload == null) {
+                payload = new HashMap<>();
+            }
             Object directorTrace = payload.get("director_trace");
             if (directorTrace instanceof Map) {
                 appendValue(values, ((Map<?, ?>) directorTrace).get("drift_decisions"));

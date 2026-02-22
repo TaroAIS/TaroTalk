@@ -1,5 +1,6 @@
 package com.tarotalk.event;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tarotalk.common.api.ApiResponse;
 import com.tarotalk.event.api.EventController;
 import com.tarotalk.event.api.TraceAggregateResponse;
@@ -22,7 +23,7 @@ public class EventControllerTest {
     @Test
     void replayAggregateIncludesCausalEdges() {
         EventService eventService = mock(EventService.class);
-        EventController controller = new EventController(eventService);
+        EventController controller = new EventController(eventService, new ObjectMapper());
 
         EventLog first = new EventLog(UUID.randomUUID(), "CHAT_MESSAGE_CREATED");
         first.setSourceService("chat-service");
@@ -48,7 +49,7 @@ public class EventControllerTest {
     @Test
     void explainIncludesDebugChannels() {
         EventService eventService = mock(EventService.class);
-        EventController controller = new EventController(eventService);
+        EventController controller = new EventController(eventService, new ObjectMapper());
 
         EventLog row = new EventLog(UUID.randomUUID(), "ORCHESTRATOR_TURN");
         row.setSourceService("orchestrator");

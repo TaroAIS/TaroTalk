@@ -15,6 +15,7 @@ class A2AChatRequest(BaseModel):
     world_id: Optional[str] = None
     context_window: Optional[int] = None
     intent: Optional[str] = None
+    trace_id: Optional[str] = None
     messages: List[Message]
 
 
@@ -66,6 +67,7 @@ class SimulateRequest(BaseModel):
     objective: Optional[str] = None
     actors: List[str] = Field(default_factory=list)
     priority: Optional[int] = None
+    trace_id: Optional[str] = None
 
 
 class SimulateResponse(BaseModel):
@@ -81,6 +83,7 @@ class WhatIfRequest(BaseModel):
     objective: Optional[str] = None
     actors: List[str] = Field(default_factory=list)
     priority: Optional[int] = None
+    trace_id: Optional[str] = None
     branch_count: int = 3
     selection_policy: str = "max_score"
     dry_run: bool = True

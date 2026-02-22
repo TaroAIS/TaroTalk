@@ -25,6 +25,11 @@ router = APIRouter(prefix="/a2a")
 v2_router = APIRouter(prefix="/api/v2/a2a")
 engine = OrchestratorEngine()
 
+def resolve_trace_id(request_trace_id: Optional[str]) -> str:
+    if request_trace_id and request_trace_id.strip():
+        return request_trace_id.strip()
+    return str(uuid.uuid4())
+
 
 async def create_user(client: httpx.AsyncClient, nickname: str, user_type: str, owner_user_id: Optional[str]):
     payload = {
@@ -117,6 +122,7 @@ async def chat_v2(request: A2AChatRequest):
 
 async def run_chat(request: A2AChatRequest) -> A2AChatResponse:
     messages = [msg.model_dump() for msg in request.messages]
+    trace_id = resolve_trace_id(request.trace_id)
     result = await engine.run_chat(
         messages=messages,
         persona_summary=request.persona_summary,
@@ -128,7 +134,6 @@ async def run_chat(request: A2AChatRequest) -> A2AChatResponse:
         intent=request.intent,
         conversation_id=request.conversation_id,
     )
-    trace_id = str(uuid.uuid4())
     director_trace = result.get("director_trace", {})
     if isinstance(director_trace, dict):
         director_trace["trace_id"] = trace_id
@@ -173,6 +178,7 @@ async def simulate_what_if(request: WhatIfRequest):
 
 
 async def run_simulation(request: SimulateRequest) -> SimulateResponse:
+    trace_id = resolve_trace_id(request.trace_id)
     actors = list(request.actors or [])
     if request.user_id and request.user_id not in actors:
         actors.append(request.user_id)
@@ -183,14 +189,20 @@ async def run_simulation(request: SimulateRequest) -> SimulateResponse:
         actors=actors,
         priority=request.priority,
     )
+    scheduled_events = result.get("scheduled_events") or []
+    if isinstance(scheduled_events, list):
+        for event in scheduled_events:
+            if isinstance(event, dict):
+                event["trace_id"] = trace_id
     return SimulateResponse(
         status=str(result.get("status") or "scheduled"),
         workflow_id=str(result.get("workflow_id")) if result.get("workflow_id") else None,
-        scheduled_events=result.get("scheduled_events") or [],
+        scheduled_events=scheduled_events,
     )
 
 
 async def run_what_if(request: WhatIfRequest) -> WhatIfResponse:
+    trace_id = resolve_trace_id(request.trace_id)
     actors = list(request.actors or [])
     if request.user_id and request.user_id not in actors:
         actors.append(request.user_id)
@@ -203,13 +215,19 @@ async def run_what_if(request: WhatIfRequest) -> WhatIfResponse:
         branch_count=request.branch_count,
         selection_policy=request.selection_policy,
     )
-    trace_id = str(uuid.uuid4())
+    branches_payload = result.get("branches") or []
+    for branch in branches_payload:
+        if not isinstance(branch, dict):
+            continue
+        for event in branch.get("events") or []:
+            if isinstance(event, dict):
+                event["trace_id"] = trace_id
     await persist_branch_scenarios(
         request.world_id,
         trace_id,
         request.selection_policy,
         request.dry_run,
-        result.get("branches") or [],
+        branches_payload,
     )
     branches = [
         WhatIfBranch(

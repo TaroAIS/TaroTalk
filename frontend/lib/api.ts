@@ -1,5 +1,6 @@
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "http://localhost:8080";
 const API_TIMEOUT_MS = Number(process.env.NEXT_PUBLIC_API_TIMEOUT_MS ?? "8000");
+const AUTH_TOKEN_KEY = process.env.NEXT_PUBLIC_AUTH_TOKEN_KEY ?? "tarotalk_token";
 
 function buildUrl(path: string) {
   if (!API_BASE) {
@@ -19,10 +20,28 @@ function buildTraceId() {
   return `web-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
+function readAuthToken(): string | null {
+  if (typeof window === "undefined" || !window.localStorage) {
+    return null;
+  }
+  const token = window.localStorage.getItem(AUTH_TOKEN_KEY);
+  if (!token) {
+    return null;
+  }
+  const normalized = token.trim();
+  return normalized.length > 0 ? normalized : null;
+}
+
 function withTraceHeaders(headers?: HeadersInit): HeadersInit {
   const next = new Headers(headers);
   if (!next.has("X-Trace-Id")) {
     next.set("X-Trace-Id", buildTraceId());
+  }
+  if (!next.has("Authorization")) {
+    const token = readAuthToken();
+    if (token) {
+      next.set("Authorization", `Bearer ${token}`);
+    }
   }
   return next;
 }

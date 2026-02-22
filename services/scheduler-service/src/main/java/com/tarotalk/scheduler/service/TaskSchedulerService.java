@@ -7,6 +7,7 @@ import com.tarotalk.scheduler.api.TaskResponse;
 import com.tarotalk.scheduler.domain.ScheduledTask;
 import com.tarotalk.scheduler.domain.TaskStatus;
 import com.tarotalk.scheduler.repo.ScheduledTaskRepository;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
@@ -56,6 +57,7 @@ public class TaskSchedulerService {
         );
     }
 
+    @Autowired
     public TaskSchedulerService(RestTemplate restTemplate,
                                 ScheduledTaskRepository taskRepository,
                                 ObjectMapper objectMapper,

@@ -19,6 +19,7 @@ import com.tarotalk.world.repo.WorldBranchScenarioRepository;
 import com.tarotalk.world.repo.WorldCausalEdgeRepository;
 import com.tarotalk.world.repo.WorldEventRepository;
 import com.tarotalk.world.repo.WorldStateRepository;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
@@ -55,6 +56,7 @@ public class WorldService {
     private final RestTemplate restTemplate;
     private final String eventServiceUrl;
 
+    @Autowired
     public WorldService(WorldStateRepository worldStateRepository,
                         WorldEventRepository worldEventRepository,
                         StoryArcRepository storyArcRepository,

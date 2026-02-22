@@ -421,3 +421,15 @@ TaroTalk 的核心价值在于：将“生成式能力”从演示级 prompt 效
 - Safety linter audits tool-call arguments before executor invocation.
 - State effects are re-linted before final response return and can be filtered on hard violations.
 - Safety findings are promoted to both top-level `safety_report` and `director_trace.safety_report`.
+
+## P19 Engineering Notes (2026-02-22)
+- Constructor ambiguity fix:
+  - `TaskSchedulerService` and `WorldService` now annotate the production constructor with `@Autowired` to avoid container mis-selection.
+- Event explain optimization:
+  - `EventController` switched from local `new ObjectMapper()` to injected mapper.
+  - explain path now parses each event payload once and reuses the parsed map across all debug channels.
+- Memory compile anti-pollution:
+  - event-log seed query now attempts `entityType=WORLD` + `entityId={worldId}` first.
+  - if scoped rows are empty, code falls back to legacy unfiltered query to keep backward compatibility.
+- Error semantics unification:
+  - all service `RestExceptionHandler` implementations now follow one status-resolution function for predictable client behavior.

@@ -167,3 +167,21 @@ GraphQL 通过单一端点 `/graphql`，支持查询（Query）、变更（Mutat
   - `safety_report[]` (rule, severity, action, reason, metadata, trace_id)
 - `director_trace` now includes:
   - `safety_report[]` for round/global safety decisions.
+
+## P19 API & Contract Notes (2026-02-22)
+- Orchestrator request models accept optional `trace_id` for:
+  - `POST /api/v2/a2a/chat`
+  - `POST /api/v2/a2a/simulate`
+  - `POST /api/v2/a2a/simulate/what-if`
+- Compatibility:
+  - `trace_id` is optional; legacy clients remain valid.
+  - when omitted, service generates a fallback trace id.
+- Frontend request header behavior:
+  - API helpers now attach `Authorization: Bearer <token>` when token exists.
+  - token key: `NEXT_PUBLIC_AUTH_TOKEN_KEY` (default `tarotalk_token`).
+- Service error HTTP mapping is unified by `ApiException.code`:
+  - `NOT_FOUND -> 404`
+  - `FORBIDDEN* -> 403`
+  - `UNAUTHORIZED* -> 401`
+  - `VALIDATION_ERROR -> 400`
+  - fallback `-> 400`

@@ -104,3 +104,15 @@
 - orchestrator 新增本地安全审计模块，无新增外部基础设施依赖。
 - 安全阻断事件通过 `safety_report` 暴露，建议在日志与监控中按 `action=SAFETY_BLOCKED` 聚合告警。
 - 默认策略是规则内置版本，后续可升级为配置化策略下发。
+
+## P19 Ops Note (2026-02-22)
+- Gateway environment behavior:
+  - default profile keeps `security.jwt.enforce=false` for local integration continuity.
+  - `application-prod.yml` sets `security.jwt.enforce=true` for production enforcement.
+- Frontend auth token key:
+  - configurable by `NEXT_PUBLIC_AUTH_TOKEN_KEY` (fallback `tarotalk_token`).
+- Trace observability:
+  - `X-Trace-Id` now guaranteed at gateway boundary (incoming or generated fallback).
+- Post-deploy validation recommendation:
+  - verify production gateway rejects protected routes without bearer token.
+  - verify trace id continuity across gateway logs and replay endpoints.

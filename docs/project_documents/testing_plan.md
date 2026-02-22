@@ -90,3 +90,16 @@
   - illegal relationship type hard-block test.
   - long content soft-warning and non-blocking test.
   - safety report propagation to director trace test.
+
+## P19 Test Additions (2026-02-22)
+- scheduler-service / world-service:
+  - `SchedulerContextLoadTest`
+  - `WorldContextLoadTest`
+- orchestrator:
+  - `test_main_trace.py` for request-trace inheritance in chat/simulate/what-if paths.
+- frontend:
+  - `api-client.test.ts` for bearer-header injection and trace-header continuity.
+- world-service:
+  - fallback test for memory compile world-scoped event query.
+- event-service:
+  - controller tests aligned to constructor-injected `ObjectMapper` path.

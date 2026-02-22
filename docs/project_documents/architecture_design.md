@@ -96,3 +96,16 @@
 - Added orchestrator `SafetyLinter` as pre-execution and pre-output governance layer.
 - Added hard-block and soft-warning policy channels with structured safety evidence.
 - Added `safety_report` to chat response and director trace for replay diagnostics.
+
+## P19 Architecture Notes (2026-02-22)
+- Startup stability hardening:
+  - scheduler-service and world-service constructor wiring now explicitly selects the production constructor.
+  - context-load tests added to prevent future bean-construction regressions.
+- Gradual auth architecture:
+  - gateway keeps development compatibility (`security.jwt.enforce=false`).
+  - production profile enables strict bearer enforcement (`application-prod.yml`).
+- Trace propagation boundary:
+  - gateway now preserves incoming `X-Trace-Id` or generates fallback when absent.
+  - orchestrator prefers request trace id and keeps response artifacts (`director_trace`, `state_effects`, `safety_report`) aligned to the same trace.
+- Memory correctness boundary:
+  - world memory compile now queries world-scoped event rows first, then falls back to legacy broad query for compatibility with historical data.
